@@ -21,8 +21,8 @@ services:
       - /mnt/dados2/media/video:/media/video2:ro
       - /mnt/dados2/media/musica:/media/musica2:ro
       # Pontos de montagem adicionais para facilitar navegação (raiz das mídias)
-      - /mnt/dados/media:/media/dados:ro
-      - /mnt/dados2/media:/media/dados2:ro
+      - /mnt/dados:/media/dados:ro
+      - /mnt/dados2:/media/dados2:ro
     ports:
       - "8096:8096"
     networks:
