@@ -15,9 +15,9 @@ services:
       # Configurações no SSD
       - /mnt/config/komga:/config
       # Quadrinhos nos HDs (somente leitura)
-      - /mnt/dados/media/quadrinhos:/data:ro
+      - /mnt/dados:/data:ro
       # Segundo disco (dados2)
-      - /mnt/dados2/media/quadrinhos:/data2:ro
+      - /mnt/dados2:/data2:ro
     ports:
       - "8082:25600"
     networks:

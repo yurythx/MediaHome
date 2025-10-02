@@ -14,12 +14,6 @@ services:
     volumes:
       # Configurações no SSD
       - /mnt/config/jellyfin:/config
-      # Mídia nos HDs (somente leitura)
-      - /mnt/dados/media/video:/media/video:ro
-      - /mnt/dados/media/musica:/media/musica:ro
-      # Segundo disco (dados2)
-      - /mnt/dados2/media/video:/media/video2:ro
-      - /mnt/dados2/media/musica:/media/musica2:ro
       # Pontos de montagem adicionais para facilitar navegação (raiz das mídias)
       - /mnt/dados:/media/dados:ro
       - /mnt/dados2:/media/dados2:ro
