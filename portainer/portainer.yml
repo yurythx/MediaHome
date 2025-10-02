@@ -18,3 +18,8 @@ services:
       - "9020:9000"
     networks:
       - mediahome
+
+networks:
+  mediahome:
+    external: true
+    name: app_network

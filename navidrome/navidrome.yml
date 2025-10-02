@@ -24,3 +24,8 @@ services:
       - "4533:4533"
     networks:
       - mediahome
+
+networks:
+  mediahome:
+    external: true
+    name: app_network

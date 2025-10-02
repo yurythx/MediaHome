@@ -22,3 +22,8 @@ services:
       - "8082:25600"
     networks:
       - mediahome
+
+networks:
+  mediahome:
+    external: true
+    name: app_network
