@@ -328,6 +328,37 @@ PRs e issues são bem-vindos. Sugestões comuns:
 
 Projeto para uso pessoal/doméstico. Verifique licenças individuais dos serviços utilizados.
 
+## 🧠 Samba — Credenciais e Montagem
+
+- Credenciais atuais:
+  - Usuário: `suporte`
+  - Senha: `suporte123`
+- Compartilhamentos (shares):
+  - `Dados` → `/mnt/dados`
+  - `Dados2` → `/mnt/dados2`
+  - `Config` → `/mnt/config`
+
+Como acessar na LAN (`192.168.0.121`):
+- Windows:
+  - Explorador: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`
+  - Mapear unidade (ex.): `net use Z: \\192.168.0.121\Dados /user:suporte suporte123`
+- Linux:
+  - `sudo apt install smbclient cifs-utils`
+  - `smbclient //192.168.0.121/Dados -U suporte`
+  - Montar via CIFS (ex.):
+    - `sudo mount -t cifs //192.168.0.121/Dados /mnt/dados_client -o username=suporte,password=suporte123,uid=1000,gid=1000,vers=3.0`
+- macOS:
+  - Finder → Go → Connect to Server: `smb://192.168.0.121/Dados`
+
+Portas e produção:
+- Desenvolvimento no Windows: container expõe `1445:445` para evitar conflito com o SMB do Windows.
+- Produção no Ubuntu: preferir `445:445` e abrir `445/tcp` no UFW.
+
+Segurança e boas práticas:
+- Troque as credenciais acima em produção por senhas fortes.
+- Se quiser somente leitura, ajuste o share para `readonly`.
+- Restrinja acesso por rede/sub-rede conforme necessidade (ex.: `192.168.0.0/24`).
+
 
 ## 📞 Suporte
 
