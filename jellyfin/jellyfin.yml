@@ -1,0 +1,23 @@
+# Jellyfin - Servidor de mídia
+# Para iniciar apenas este serviço: docker-compose -f jellyfin/jellyfin.yml up -d
+# Para usar com compose principal: incluído automaticamente
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+    volumes:
+      # Configurações no SSD
+      - /mnt/config/jellyfin:/config
+      # Mídia nos HDs (somente leitura)
+      - /mnt/dados/media/video:/media/video:ro
+      - /mnt/dados/media/musica:/media/musica:ro
+    ports:
+      - "8096:8096"
+    networks:
+      - mediahome

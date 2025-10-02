@@ -1,0 +1,22 @@
+# Samba - Servidor de arquivos
+# Para iniciar apenas este serviço: docker-compose -f fileserver/samba.yml up -d
+# Para usar com compose principal: incluído automaticamente
+
+services:
+  samba:
+    image: dperson/samba:latest
+    container_name: samba
+    restart: unless-stopped
+    environment:
+      - TZ=America/Sao_Paulo
+      - USER=mediahome;mediahome123
+    volumes:
+      # Compartilhamentos
+      - /mnt/dados:/dados
+      - /mnt/config:/config
+    ports:
+      - "139:139"
+      - "1445:445"
+    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "mediahome;mediahome123" -p'
+    networks:
+      - mediahome

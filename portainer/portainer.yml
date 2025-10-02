@@ -1,0 +1,20 @@
+# Portainer - Interface de gerenciamento Docker
+# Para iniciar apenas este serviço: docker-compose -f portainer/portainer.yml up -d
+# Para usar com compose principal: incluído automaticamente
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    environment:
+      - TZ=America/Sao_Paulo
+    volumes:
+      # Configurações no SSD
+      - /mnt/config/portainer:/data
+      # Socket do Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9020:9000"
+    networks:
+      - mediahome

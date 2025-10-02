@@ -1,0 +1,22 @@
+# Navidrome - Servidor de música
+# Para iniciar apenas este serviço: docker-compose -f navidrome/navidrome.yml up -d
+# Para usar com compose principal: incluído automaticamente
+
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+    volumes:
+      # Configurações no SSD
+      - /mnt/config/navidrome:/data
+      # Música nos HDs (somente leitura)
+      - /mnt/dados/media/musica:/music:ro
+    ports:
+      - "4533:4533"
+    networks:
+      - mediahome
