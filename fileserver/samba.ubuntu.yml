@@ -5,7 +5,7 @@
 services:
   samba:
     image: dperson/samba:latest
-    container_name: samba
+    container_name: samba-ubuntu
     restart: unless-stopped
     environment:
       - TZ=America/Sao_Paulo
@@ -16,7 +16,8 @@ services:
       - /mnt/dados2:/dados2
       - /mnt/config:/config
     ports:
-      - "139:139"
+      # Mapear apenas a porta SMB moderna (445). O NetBIOS/139 é opcional
+      # e geralmente já está em uso pelo serviço nativo (nmbd) no host.
       - "445:445"
     command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "suporte;suporte123" -p'
     networks:

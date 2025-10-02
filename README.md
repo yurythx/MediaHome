@@ -362,11 +362,13 @@ Segurança e boas práticas:
 ### Produção (Ubuntu) — usar arquivo dedicado
 
 - Utilize o arquivo: `fileserver/samba.ubuntu.yml`
+- Este arquivo publica apenas a porta `445:445` e usa `container_name: samba-ubuntu` para evitar conflito com containers existentes e com o serviço Samba nativo do host.
 - Comandos:
   - `sudo ufw allow 445/tcp`
   - `docker compose -f fileserver/samba.ubuntu.yml up -d`
 - Acesso no Windows: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`
 - Mantém a rede externa `app_network` para coexistir com outras stacks.
+- Se houver erro de acesso, veja a seção "Samba (Ubuntu) — porta em uso ou conflito de container" abaixo.
 
 ### Samba no Windows (host)
 
@@ -383,6 +385,114 @@ Segurança e boas práticas:
   - Alternativa não recomendada: desativar o SMB do Windows e mapear `445:445` no container.
 - Nota: o Samba é para clientes externos. Entre containers, o acesso aos discos já é feito via bind mounts (`/mnt/dados` e `/mnt/dados2`) nos YAML dos serviços.
 
+### Samba (Ubuntu) — porta em uso ou conflito de container
+Se ao iniciar o Samba em produção você ver erros como:
+- `failed to bind port 0.0.0.0:139/tcp ... address already in use`
+- `You have to remove (or rename) that container to be able to reuse that name`
+
+Siga estas etapas:
+```bash
+# 1) Remover/derrubar qualquer container antigo chamado "samba"
+docker rm -f samba || true
+docker compose -f fileserver/samba.yml down || true
+
+# 2) Parar e desabilitar os serviços Samba nativos do host (liberam 139/445)
+sudo systemctl stop smbd nmbd
+sudo systemctl disable smbd nmbd
+
+# 3) Verificar se as portas estão livres
+sudo ss -tulpn | grep -E ':(139|445)' || true
+
+# 4) Subir o Samba do projeto (Ubuntu)
+docker compose -f fileserver/samba.ubuntu.yml up -d
+
+# 5) Abrir firewall (se necessário)
+sudo ufw allow 445/tcp
+sudo ufw reload
+```
+
+Notas importantes:
+- Não rode dois containers Samba ao mesmo tempo; mesmo com nomes diferentes eles competem pela porta `445`.
+- O arquivo `fileserver/samba.ubuntu.yml` publica apenas `445:445` (SMB moderno). A porta `139` (NetBIOS) não é necessária e costuma estar em uso pelo serviço nativo.
+- Após subir, acesse do Windows via `\\SEU_IP\Dados` e `\\SEU_IP\Dados2`.
+
+### Containers não reconhecem caminhos de rede (SMB)
+Containers não acessam diretamente caminhos de rede como `\\host\Dados`. Eles precisam de caminhos locais do host (bind mounts). Se os dados estão em outro servidor/host, monte os compartilhamentos SMB no host onde os containers rodam e, só então, referencie esses caminhos locais no YAML.
+
+Passo a passo (Ubuntu):
+```bash
+# 1) Criar pontos de montagem locais
+sudo mkdir -p /mnt/dados /mnt/dados2
+
+# 2) Montar os compartilhamentos SMB no host
+sudo apt install -y cifs-utils
+sudo mount -t cifs //SEU_IP/Dados /mnt/dados \
+  -o username=SEU_USUARIO,password=SEU_SEGREDO,vers=3.0,uid=1000,gid=1000,iocharset=utf8,file_mode=0644,dir_mode=0755
+
+sudo mount -t cifs //SEU_IP/Dados2 /mnt/dados2 \
+  -o username=SEU_USUARIO,password=SEU_SEGREDO,vers=3.0,uid=1000,gid=1000,iocharset=utf8,file_mode=0644,dir_mode=0755
+
+# 3) Verificar conteúdo
+ls -la /mnt/dados
+ls -la /mnt/dados2
+
+# 4) Subir/reativar os serviços para que enxerguem os caminhos
+docker compose up -d
+```
+
+Persistência no boot (`/etc/fstab`):
+```bash
+sudo bash -c 'cat >/etc/samba-cred <<EOF\nusername=SEU_USUARIO\npassword=SEU_SEGREDO\nEOF'
+sudo chmod 600 /etc/samba-cred
+
+sudo bash -c 'cat >>/etc/fstab <<EOF\n//SEU_IP/Dados  /mnt/dados  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0\n//SEU_IP/Dados2 /mnt/dados2 cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0\nEOF'
+
+sudo mount -a
+```
+
+Importante:
+- Os YAML desta stack referenciam subpastas como `/mnt/dados/media/video`, `/mnt/dados/media/musica`, etc. Garanta que essa estrutura exista dentro do compartilhamento (crie `media/video`, `media/musica`, `media/ebooks`, `media/quadrinhos`).
+- Alternativamente, ajuste os YAML para apontar diretamente para os caminhos que você realmente usa no host (ex.: montar `/mnt/dados` como `/media` no Jellyfin e configurar as bibliotecas lá dentro).
+- Evite montar SMB dentro do container; monte no host e use bind mounts. Isto simplifica permissões e melhora desempenho.
+
+
+## 📚 Configurar Bibliotecas nos Apps
+
+Para que os apps reconheçam os discos montados via bind mounts, informe explicitamente os caminhos internos do container ao criar as bibliotecas.
+
+- Jellyfin
+  - Vá em `Dashboard → Libraries → Add Media Library`.
+  - Em `Folders`, digite manualmente os caminhos:
+    - Vídeos: `/media/video` e `/media/video2`
+    - Música: `/media/musica` e `/media/musica2`
+  - Dica: se o navegador de pastas não listar `/media`, digite o caminho direto e salve.
+  - Verificação opcional:
+    - `docker exec -it jellyfin ls -la /media`
+    - `docker exec -it jellyfin ls -la /media/video /media/video2 /media/musica /media/musica2`
+
+- Komga
+  - Vá em `Admin → Libraries → New Library`.
+  - Informe o caminho da biblioteca como `/data` (disco 1) e/ou `/data2` (disco 2).
+  - Verificação:
+    - `docker exec -it komga ls -la /data /data2`
+
+- Navidrome
+  - Já configurado para múltiplas pastas com `ND_MUSICFOLDERS=/music,/music2`.
+  - Vá em `Settings → Library` e clique em `Rescan`.
+  - Verificação:
+    - `docker exec -it navidrome ls -la /music /music2`
+
+- KoodoReader
+  - Utilize `/books` e `/books2` como origem dos eBooks.
+  - Verificação:
+    - `docker exec -it koodoreader ls -la /books /books2`
+
+Se algum caminho não existir dentro do container, verifique no host:
+```bash
+ls -la /mnt/dados/media/{video,musica,ebooks,quadrinhos}
+ls -la /mnt/dados2/media/{video,musica,ebooks,quadrinhos}
+sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
+```
 
 ## 📞 Suporte
 

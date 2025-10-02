@@ -11,6 +11,8 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/Sao_Paulo
+      # Escanear múltiplas pastas de música
+      - ND_MUSICFOLDERS=/music,/music2
     volumes:
       # Configurações no SSD
       - /mnt/config/navidrome:/data
