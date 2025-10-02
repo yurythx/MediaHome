@@ -17,6 +17,8 @@ services:
       - /mnt/config/koodoreader:/app/uploads
       # eBooks nos HDs (somente leitura)
       - /mnt/dados/media/ebooks:/books:ro
+      # Segundo disco (dados2) montado dentro de /books
+      - /mnt/dados2/media/ebooks:/books2:ro
     ports:
       - "3010:80"
       - "8081:8080"

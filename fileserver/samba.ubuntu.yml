@@ -1,0 +1,28 @@
+# Samba - Produção (Ubuntu) — porta 445
+# Para iniciar apenas este serviço em produção (Ubuntu):
+#   docker compose -f fileserver/samba.ubuntu.yml up -d
+
+services:
+  samba:
+    image: dperson/samba:latest
+    container_name: samba
+    restart: unless-stopped
+    environment:
+      - TZ=America/Sao_Paulo
+      - USER=suporte;suporte123
+    volumes:
+      # Compartilhamentos
+      - /mnt/dados:/dados
+      - /mnt/dados2:/dados2
+      - /mnt/config:/config
+    ports:
+      - "139:139"
+      - "445:445"
+    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "suporte;suporte123" -p'
+    networks:
+      - mediahome
+
+networks:
+  mediahome:
+    external: true
+    name: app_network

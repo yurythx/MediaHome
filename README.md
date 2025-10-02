@@ -359,6 +359,30 @@ Segurança e boas práticas:
 - Se quiser somente leitura, ajuste o share para `readonly`.
 - Restrinja acesso por rede/sub-rede conforme necessidade (ex.: `192.168.0.0/24`).
 
+### Produção (Ubuntu) — usar arquivo dedicado
+
+- Utilize o arquivo: `fileserver/samba.ubuntu.yml`
+- Comandos:
+  - `sudo ufw allow 445/tcp`
+  - `docker compose -f fileserver/samba.ubuntu.yml up -d`
+- Acesso no Windows: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`
+- Mantém a rede externa `app_network` para coexistir com outras stacks.
+
+### Samba no Windows (host)
+
+- Limitação: o cliente SMB do Windows usa sempre a porta `445` e não permite especificar outra. No host Windows, o serviço SMB nativo ocupa `445`, por isso o container exposto em `1445:445` não pode ser acessado via Explorer (`\\localhost\Dados`).
+- Opções de acesso:
+  - WSL/Ubuntu: monte com CIFS usando `port=1445` e acesse via `\\wsl$`:
+    - `sudo apt install cifs-utils`
+    - `sudo mkdir -p /mnt/dados_client /mnt/dados2_client`
+    - `sudo mount -t cifs //localhost/Dados /mnt/dados_client -o username=suporte,password=suporte123,port=1445,vers=3.0`
+    - `sudo mount -t cifs //localhost/Dados2 /mnt/dados2_client -o username=suporte,password=suporte123,port=1445,vers=3.0`
+    - Acesse pelo Explorer: `\\wsl$\Ubuntu\mnt\dados_client`
+  - Outro dispositivo Linux/macOS: montar SMB especificando `port=1445` (Linux) ou usar cliente compatível.
+  - Produção (Ubuntu): exponha `445:445` e abra `445/tcp` no UFW; Windows acessa direto `\\192.168.0.121\Dados`.
+  - Alternativa não recomendada: desativar o SMB do Windows e mapear `445:445` no container.
+- Nota: o Samba é para clientes externos. Entre containers, o acesso aos discos já é feito via bind mounts (`/mnt/dados` e `/mnt/dados2`) nos YAML dos serviços.
+
 
 ## 📞 Suporte
 
