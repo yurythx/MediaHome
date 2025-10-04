@@ -20,7 +20,6 @@ Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, m
 
 - **Jellyfin** (8096) - Servidor de mídia (filmes, séries, música)
 - **Komga** (8082) - Servidor de quadrinhos/mangás
-- **KoodoReader** (3010) - Leitor de e-books
 - **Navidrome** (4533) - Servidor de música
 - **Samba** (1445) - Compartilhamento de arquivos
 - **Portainer** (9020) - Monitoramento Docker
@@ -34,9 +33,6 @@ Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, m
 - **Komga**
   - Vantagens: biblioteca rica para quadrinhos/mangás, leitura web responsiva
   - Quando usar: organizar e ler sua coleção de HQs e mangás
-- **KoodoReader**
-  - Vantagens: leitura de e-books na web, interface limpa, suporte a múltiplos formatos
-  - Quando usar: gerenciar e ler ePUB/PDF diretamente no navegador
 - **Navidrome**
   - Vantagens: servidor leve de música, compatível com clientes Subsonic
   - Quando usar: streaming de música para desktop e mobile
@@ -56,7 +52,6 @@ Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, m
 |-------------|------------|
 | Jellyfin    | 8096       |
 | Komga       | 8082       |
-| KoodoReader | 3010       |
 | Navidrome   | 4533       |
 | Portainer   | 9020       |
 | Samba (SMB) | 1445       |
@@ -72,8 +67,6 @@ MediaHome/
 │   └── jellyfin.yml           # Serviço Jellyfin independente
 ├── komga/
 │   └── komga.yml              # Serviço Komga independente
-├── koodoreader/
-│   └── koodoreader.yml        # Serviço KoodoReader independente
 ├── navidrome/
 │   └── navidrome.yml          # Serviço Navidrome independente
 ├── portainer/
@@ -99,7 +92,6 @@ docker-compose up -d
 docker compose -f jellyfin/jellyfin.yml up -d
 docker compose -f komga/komga.yml up -d
 docker compose -f navidrome/navidrome.yml up -d
-docker compose -f koodoreader/koodoreader.yml up -d
 docker compose -f fileserver/samba.yml up -d
 docker compose -f portainer/portainer.yml up -d
 ```
@@ -110,7 +102,7 @@ docker compose -f portainer/portainer.yml up -d
 2. **Estrutura de diretórios** criada:
    ```bash
    # Configurações (SSD recomendado)
-   sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,koodoreader,portainer}
+   sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
    
    # Mídia (HDs)
    sudo mkdir -p /mnt/dados/media/{video,musica}
@@ -156,7 +148,6 @@ environment:
 
 - **Jellyfin**: http://192.168.0.121:8096
 - **Komga**: http://192.168.0.121:8082
-- **KoodoReader**: http://192.168.0.121:3010
 - **Navidrome**: http://192.168.0.121:4533
 - **Portainer**: http://192.168.0.121:9020
 - **Samba**: `smb://192.168.0.121:1445` (Linux/Mac) — no Windows, use compartilhamento padrão sem porta
@@ -261,8 +252,8 @@ docker network create app_network || true
 
 ### 4) Estrutura de diretórios
 ```bash
-sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,koodoreader,portainer}
-sudo mkdir -p /mnt/dados/media/{video,musica,ebooks,quadrinhos}
+sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
+sudo mkdir -p /mnt/dados/media/{video,musica,quadrinhos}
 sudo mkdir -p /mnt/backup
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/backup
 ```
@@ -275,7 +266,7 @@ docker ps
 
 ### 6) Abrir portas no firewall (UFW)
 ```bash
-sudo ufw allow 8096/tcp 8082/tcp 3010/tcp 4533/tcp 9020/tcp 1445/tcp
+sudo ufw allow 8096/tcp 8082/tcp 4533/tcp 9020/tcp 1445/tcp
 sudo ufw reload
 ```
 
@@ -285,7 +276,6 @@ sudo ufw reload
 - Crie sites/domínios e configure proxy reverso para cada serviço:
   - `jellyfin.seu-dominio` → `http://192.168.0.121:8096`
   - `komga.seu-dominio` → `http://192.168.0.121:8082`
-  - `ebooks.seu-dominio` → `http://192.168.0.121:3010`
   - `musica.seu-dominio` → `http://192.168.0.121:4533`
   - `portainer.seu-dominio` → `http://192.168.0.121:9020`
 
@@ -307,7 +297,6 @@ No aaPanel, em cada site: “SSL” → “Let’s Encrypt” → emitir certifi
 ```bash
 curl -I http://192.168.0.121:8096
 curl -I http://192.168.0.121:8082
-curl -I http://192.168.0.121:3010
 curl -I http://192.168.0.121:4533
 curl -I http://192.168.0.121:9020
 ```
@@ -482,15 +471,10 @@ Para que os apps reconheçam os discos montados via bind mounts, informe explici
   - Verificação:
     - `docker exec -it navidrome ls -la /music /music2`
 
-- KoodoReader
-  - Utilize `/books` e `/books2` como origem dos eBooks.
-  - Verificação:
-    - `docker exec -it koodoreader ls -la /books /books2`
-
-Se algum caminho não existir dentro do container, verifique no host:
+ Se algum caminho não existir dentro do container, verifique no host:
 ```bash
-ls -la /mnt/dados/media/{video,musica,ebooks,quadrinhos}
-ls -la /mnt/dados2/media/{video,musica,ebooks,quadrinhos}
+ls -la /mnt/dados/media/{video,musica,quadrinhos}
+ls -la /mnt/dados2/media/{video,musica,quadrinhos}
 sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
 ```
 

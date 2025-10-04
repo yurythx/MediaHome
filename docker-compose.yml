@@ -7,7 +7,6 @@ include:
   # Serviços de mídia
   - jellyfin/jellyfin.yml
   - komga/komga.yml
-  - koodoreader/koodoreader.yml
   - navidrome/navidrome.yml
   
   # Serviços de infraestrutura
