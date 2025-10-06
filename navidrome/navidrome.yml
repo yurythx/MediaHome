@@ -17,9 +17,9 @@ services:
       # Configurações no SSD
       - /mnt/config/navidrome:/data
       # Música nos HDs (somente leitura)
-      - /mnt/dados/media/musica:/music:ro
-      # Segundo disco (dados2) montado dentro de /music
-      - /mnt/dados2/media/musica:/music2:ro
+      - /mnt/dados:/music:ro
+      # Segundo disco (dados2)
+      - /mnt/dados2:/music2:ro
     ports:
       - "4533:4533"
     networks:

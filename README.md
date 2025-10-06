@@ -21,7 +21,7 @@ Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, m
 - **Jellyfin** (8096) - Servidor de mídia (filmes, séries, música)
 - **Komga** (8082) - Servidor de quadrinhos/mangás
 - **Navidrome** (4533) - Servidor de música
-- **Samba** (1445) - Compartilhamento de arquivos
+- **Samba** (445) - Compartilhamento de arquivos
 - **Portainer** (9020) - Monitoramento Docker
 - **Backup** - Sistema automatizado de backup
 
@@ -54,7 +54,7 @@ Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, m
 | Komga       | 8082       |
 | Navidrome   | 4533       |
 | Portainer   | 9020       |
-| Samba (SMB) | 1445       |
+| Samba (SMB) | 445        |
 
 
 ## 🏗️ Estrutura Modular
@@ -105,8 +105,7 @@ docker compose -f portainer/portainer.yml up -d
    sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
    
    # Mídia (HDs)
-   sudo mkdir -p /mnt/dados/media/{video,musica}
-   sudo mkdir -p /mnt/dados2/media/comics
+   sudo mkdir -p /mnt/dados /mnt/dados2
    
    # Backup
    sudo mkdir -p /mnt/backup
@@ -120,7 +119,7 @@ docker compose -f portainer/portainer.yml up -d
 ### Ajustar Caminhos
 Edite os arquivos `.yml` conforme sua estrutura de diretórios:
 - **Configurações**: `/mnt/config/[serviço]`
-- **Mídia**: `/mnt/dados/media/` e `/mnt/dados2/media/`
+- **Mídia**: `/mnt/dados` e `/mnt/dados2`
 - **Backup**: `/mnt/backup`
 
 ### Configurar Credenciais Samba
@@ -150,7 +149,7 @@ environment:
 - **Komga**: http://192.168.0.121:8082
 - **Navidrome**: http://192.168.0.121:4533
 - **Portainer**: http://192.168.0.121:9020
-- **Samba**: `smb://192.168.0.121:1445` (Linux/Mac) — no Windows, use compartilhamento padrão sem porta
+- **Samba**: `smb://192.168.0.121/Dados` (Linux/Mac/Windows)
 
 > Dica: em produção, utilize aaPanel/Nginx como proxy reverso com SSL e nomes de host (ex.: `jellyfin.seu-dominio`).
 
@@ -253,10 +252,105 @@ docker network create app_network || true
 ### 4) Estrutura de diretórios
 ```bash
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
-sudo mkdir -p /mnt/dados/media/{video,musica,quadrinhos}
+sudo mkdir -p /mnt/dados /mnt/dados2
 sudo mkdir -p /mnt/backup
-sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/backup
+sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 ```
+
+### 4.1) Montar os discos /mnt/dados e /mnt/dados2 (persistente)
+
+Escolha o cenário que corresponde ao seu ambiente e siga os passos para garantir que os discos sejam montados automaticamente em todo boot.
+
+#### Cenário A — Discos locais (Ubuntu, ext4)
+
+1) Identificar partições/discos:
+```bash
+lsblk -f
+```
+
+2) (Opcional) Formatar como ext4 caso o disco esteja em branco — ATENÇÃO: apaga todos os dados:
+```bash
+sudo mkfs.ext4 /dev/sdX1  # substitua sdX1 pela partição correta
+```
+
+3) Obter os UUIDs das partições:
+```bash
+sudo blkid /dev/sdX1 /dev/sdY1  # ajuste conforme seus dispositivos
+```
+
+4) Editar `/etc/fstab` para montar no boot (use os UUIDs obtidos):
+```bash
+sudo nano /etc/fstab
+
+# Exemplo (ext4 com noatime)
+UUID=<UUID_DADOS>  /mnt/dados   ext4  defaults,noatime  0  2
+UUID=<UUID_DADOS2> /mnt/dados2  ext4  defaults,noatime  0  2
+```
+
+Exemplo real (com base no seu `lsblk`/`blkid`):
+
+- `sdb1` — ext4, label `Dados2`, UUID `23974e63-63e1-4936-8839-5e530415daeb` → montar em `/mnt/dados2`
+- `sdc1` — ext4, label `Dados`,  UUID `470a25c1-b71b-44d6-94e3-907aa10043d6` → montar em `/mnt/dados`
+
+Adição no `/etc/fstab` (copie exatamente):
+```fstab
+UUID=470a25c1-b71b-44d6-94e3-907aa10043d6  /mnt/dados   ext4  defaults,noatime  0  2
+UUID=23974e63-63e1-4936-8839-5e530415daeb  /mnt/dados2  ext4  defaults,noatime  0  2
+```
+
+Validação:
+```bash
+sudo mount -a
+ls -la /mnt/dados /mnt/dados2
+```
+
+5) Aplicar e validar:
+```bash
+sudo systemctl daemon-reload  # recarrega mudanças do fstab no systemd
+sudo mount -a
+ls -la /mnt/dados /mnt/dados2
+```
+
+#### Cenário B — Compartilhamentos SMB (outro servidor)
+
+1) Instalar utilitários CIFS:
+```bash
+sudo apt install -y cifs-utils
+```
+
+2) Criar arquivo de credenciais seguro:
+```bash
+sudo bash -c 'cat >/etc/samba-cred <<EOF
+username=SEU_USUARIO
+password=SEU_SEGREDO
+EOF'
+sudo chmod 600 /etc/samba-cred
+```
+
+3) Editar `/etc/fstab` para montagem persistente:
+```bash
+sudo nano /etc/fstab
+
+# Publicação padrão (Samba em 445:445)
+//SEU_IP/Dados   /mnt/dados   cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+//SEU_IP/Dados2  /mnt/dados2  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+
+# Desenvolvimento no Windows (se publicar 1445:445), acrescente port=1445
+# //SEU_IP/Dados   /mnt/dados   cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,port=1445,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+# //SEU_IP/Dados2  /mnt/dados2  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,port=1445,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+```
+
+4) Aplicar e validar:
+```bash
+sudo systemctl daemon-reload  # recarrega mudanças do fstab no systemd
+sudo mount -a
+ls -la /mnt/dados /mnt/dados2
+```
+
+Observações:
+- Garanta que `/mnt/dados` e `/mnt/dados2` existem (já criados na etapa 4) e têm `uid=1000`.
+- Em produção (Ubuntu), prefira publicação `445:445` no Samba e abra `445/tcp` no UFW.
+- Não monte SMB dentro dos containers; monte no host e use bind mounts (já configurado nos `.yml`).
 
 ### 5) Subir serviços
 ```bash
@@ -266,7 +360,7 @@ docker ps
 
 ### 6) Abrir portas no firewall (UFW)
 ```bash
-sudo ufw allow 8096/tcp 8082/tcp 4533/tcp 9020/tcp 1445/tcp
+sudo ufw allow 8096/tcp 8082/tcp 4533/tcp 9020/tcp 445/tcp
 sudo ufw reload
 ```
 
@@ -302,7 +396,7 @@ curl -I http://192.168.0.121:9020
 ```
 
 ### 10) Observações
-- Samba no Windows usa porta 445 por padrão e não permite especificar porta; o container está exposto em `1445` para evitar conflito, recomendado acesso por outros dispositivos ou ajustar topologia conforme necessidade.
+- Samba usa a porta 445 por padrão; exponha `445:445` em produção. No Windows, se 445 estiver ocupado pelo serviço nativo, ajuste para `1445:445` ou utilize outro dispositivo/WSL.
 - Caso já exista MinIO usando 9000/9001, Portainer desta stack está em 9020 para coexistir com outra stack.
 
 ## 🤝 Contribuição
@@ -340,7 +434,7 @@ Como acessar na LAN (`192.168.0.121`):
   - Finder → Go → Connect to Server: `smb://192.168.0.121/Dados`
 
 Portas e produção:
-- Desenvolvimento no Windows: container expõe `1445:445` para evitar conflito com o SMB do Windows.
+- Desenvolvimento no Windows: ajuste a publicação para `1445:445` se a `445` estiver ocupada pelo SMB do host.
 - Produção no Ubuntu: preferir `445:445` e abrir `445/tcp` no UFW.
 
 Segurança e boas práticas:
@@ -348,22 +442,18 @@ Segurança e boas práticas:
 - Se quiser somente leitura, ajuste o share para `readonly`.
 - Restrinja acesso por rede/sub-rede conforme necessidade (ex.: `192.168.0.0/24`).
 
-### Produção (Ubuntu) — usar arquivo dedicado
+### Produção (Ubuntu)
 
-- Utilize o arquivo: `fileserver/samba.ubuntu.yml`
-- Este arquivo publica apenas a porta `445:445` e usa `container_name: samba-ubuntu` para evitar conflito com containers existentes e com o serviço Samba nativo do host.
-- Comandos:
-  - `sudo ufw allow 445/tcp`
-  - `docker compose -f fileserver/samba.ubuntu.yml up -d`
-- Acesso no Windows: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`
-- Mantém a rede externa `app_network` para coexistir com outras stacks.
-- Se houver erro de acesso, veja a seção "Samba (Ubuntu) — porta em uso ou conflito de container" abaixo.
+- Para produção, utilize `fileserver/samba.yml` ajustando a publicação de portas para `445:445`.
+- Abra a porta no firewall: `sudo ufw allow 445/tcp`.
+- Suba o serviço: `docker compose -f fileserver/samba.yml up -d`.
+- Acesso no Windows: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`.
 
 ### Samba no Windows (host)
 
 - Limitação: o cliente SMB do Windows usa sempre a porta `445` e não permite especificar outra. No host Windows, o serviço SMB nativo ocupa `445`, por isso o container exposto em `1445:445` não pode ser acessado via Explorer (`\\localhost\Dados`).
 - Opções de acesso:
-  - WSL/Ubuntu: monte com CIFS usando `port=1445` e acesse via `\\wsl$`:
+  - WSL/Ubuntu (se usar publicação alternativa `1445:445`): monte com CIFS usando `port=1445` e acesse via `\\wsl$`:
     - `sudo apt install cifs-utils`
     - `sudo mkdir -p /mnt/dados_client /mnt/dados2_client`
     - `sudo mount -t cifs //localhost/Dados /mnt/dados_client -o username=suporte,password=suporte123,port=1445,vers=3.0`
@@ -374,9 +464,9 @@ Segurança e boas práticas:
   - Alternativa não recomendada: desativar o SMB do Windows e mapear `445:445` no container.
 - Nota: o Samba é para clientes externos. Entre containers, o acesso aos discos já é feito via bind mounts (`/mnt/dados` e `/mnt/dados2`) nos YAML dos serviços.
 
-### Samba (Ubuntu) — porta em uso ou conflito de container
+### Samba — porta em uso ou conflito de container (produção)
 Se ao iniciar o Samba em produção você ver erros como:
-- `failed to bind port 0.0.0.0:139/tcp ... address already in use`
+- `failed to bind port 0.0.0.0:445/tcp ... address already in use`
 - `You have to remove (or rename) that container to be able to reuse that name`
 
 Siga estas etapas:
@@ -385,24 +475,25 @@ Siga estas etapas:
 docker rm -f samba || true
 docker compose -f fileserver/samba.yml down || true
 
-# 2) Parar e desabilitar os serviços Samba nativos do host (liberam 139/445)
+# 2) Parar e desabilitar os serviços Samba nativos do host (liberam 445)
 sudo systemctl stop smbd nmbd
 sudo systemctl disable smbd nmbd
 
-# 3) Verificar se as portas estão livres
-sudo ss -tulpn | grep -E ':(139|445)' || true
+# 3) Verificar se a porta está livre
+sudo ss -tulpn | grep -E ':445' || true
 
-# 4) Subir o Samba do projeto (Ubuntu)
-docker compose -f fileserver/samba.ubuntu.yml up -d
+# 4) Ajustar publicação para produção (445:445) em fileserver/samba.yml
+# 5) Subir o Samba do projeto
+docker compose -f fileserver/samba.yml up -d
 
-# 5) Abrir firewall (se necessário)
+# 6) Abrir firewall (se necessário)
 sudo ufw allow 445/tcp
 sudo ufw reload
 ```
 
 Notas importantes:
 - Não rode dois containers Samba ao mesmo tempo; mesmo com nomes diferentes eles competem pela porta `445`.
-- O arquivo `fileserver/samba.ubuntu.yml` publica apenas `445:445` (SMB moderno). A porta `139` (NetBIOS) não é necessária e costuma estar em uso pelo serviço nativo.
+- Para produção, utilize apenas `445:445` e evite expor `139`.
 - Após subir, acesse do Windows via `\\SEU_IP\Dados` e `\\SEU_IP\Dados2`.
 
 ### Containers não reconhecem caminhos de rede (SMB)
@@ -440,8 +531,8 @@ sudo mount -a
 ```
 
 Importante:
-- Os YAML desta stack referenciam subpastas como `/mnt/dados/media/video`, `/mnt/dados/media/musica`, etc. Garanta que essa estrutura exista dentro do compartilhamento (crie `media/video`, `media/musica`, `media/ebooks`, `media/quadrinhos`).
-- Alternativamente, ajuste os YAML para apontar diretamente para os caminhos que você realmente usa no host (ex.: montar `/mnt/dados` como `/media` no Jellyfin e configurar as bibliotecas lá dentro).
+- Os serviços podem referenciar diretamente os pontos de montagem: `/mnt/dados` e `/mnt/dados2`.
+- Organize suas pastas internamente conforme preferir e ajuste os `.yml` se necessário.
 - Evite montar SMB dentro do container; monte no host e use bind mounts. Isto simplifica permissões e melhora desempenho.
 
 
@@ -452,12 +543,10 @@ Para que os apps reconheçam os discos montados via bind mounts, informe explici
 - Jellyfin
   - Vá em `Dashboard → Libraries → Add Media Library`.
   - Em `Folders`, digite manualmente os caminhos:
-    - Vídeos: `/media/video` e `/media/video2`
-    - Música: `/media/musica` e `/media/musica2`
+    - Utilize os pontos: `/media/dados` e `/media/dados2` (escolha subpastas dentro deles conforme sua organização).
   - Dica: se o navegador de pastas não listar `/media`, digite o caminho direto e salve.
   - Verificação opcional:
-    - `docker exec -it jellyfin ls -la /media`
-    - `docker exec -it jellyfin ls -la /media/video /media/video2 /media/musica /media/musica2`
+    - `docker exec -it jellyfin ls -la /media/dados /media/dados2`
 
 - Komga
   - Vá em `Admin → Libraries → New Library`.
@@ -473,8 +562,7 @@ Para que os apps reconheçam os discos montados via bind mounts, informe explici
 
  Se algum caminho não existir dentro do container, verifique no host:
 ```bash
-ls -la /mnt/dados/media/{video,musica,quadrinhos}
-ls -la /mnt/dados2/media/{video,musica,quadrinhos}
+ls -la /mnt/dados /mnt/dados2
 sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
 ```
 
