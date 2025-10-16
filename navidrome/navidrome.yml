@@ -25,7 +25,5 @@ services:
     networks:
       - mediahome
 
-networks:
-  mediahome:
-    external: true
-    name: app_network
+volumes:
+  navidrome_data:

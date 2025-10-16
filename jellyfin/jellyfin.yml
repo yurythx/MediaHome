@@ -21,8 +21,3 @@ services:
       - "8096:8096"
     networks:
       - mediahome
-
-networks:
-  mediahome:
-    external: true
-    name: app_network

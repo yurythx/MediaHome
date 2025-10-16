@@ -19,7 +19,5 @@ services:
     networks:
       - mediahome
 
-networks:
-  mediahome:
-    external: true
-    name: app_network
+volumes:
+  portainer_data:

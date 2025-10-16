@@ -1,575 +1,745 @@
-# MediaHome - Servidor de Mídia Doméstico
+# 🎬 Stack MediaHome - Servidor de Mídia Doméstico
 
-Sistema completo de servidor de mídia doméstico usando Docker Compose com arquitetura modular.
+Esta stack oferece uma solução completa de servidor de mídia doméstico, centralizando filmes, séries, música, quadrinhos e e-books com acesso via web e compartilhamento de arquivos.
 
-## 🎯 Propósito da Stack
+## 📋 Visão Geral
 
-Centralizar, organizar e disponibilizar toda a sua mídia doméstica (vídeos, músicas, quadrinhos e e-books) em um único servidor, com gestão simples via web, backups diários e compatibilidade com múltiplos dispositivos. A stack foi pensada para:
-- Subir rapidamente em qualquer host com Docker (Windows/Linux/Ubuntu + aaPanel)
-- Evitar conflitos de portas e coexistir com outras stacks via rede compartilhada `app_network`
-- Oferecer administração via Portainer e rotinas de backup automáticas
+### Componentes da Stack
+- **🎬 Jellyfin**: Servidor de streaming de vídeos (filmes e séries)
+- **📚 Komga**: Biblioteca digital de quadrinhos e mangás
+- **🎵 Navidrome**: Servidor de streaming de música
+- **📁 Samba**: Compartilhamento de arquivos via SMB/CIFS
+- **🌐 Portainer**: Interface de gerenciamento Docker
+- **💾 Backup**: Sistema automatizado de backup das configurações
 
-## ✅ Por que usar o MediaHome
-- Simplicidade: um único `docker compose up -d` inicia tudo
-- Modularidade: serviços podem ser iniciados individualmente
-- Portabilidade: roda em ambientes diferentes sem ajustes complexos
-- Segurança básica: isolamento por rede, portas explícitas e orientações de firewall
-- Manutenção facilitada: Portainer para gerenciar containers e logs
+### Arquitetura
+- **Rede**: Todos os serviços compartilham a rede local `mediahome_default`
+- **Volumes**: Dados persistidos em volumes locais Docker
+- **Armazenamento**: Bind mounts para `/mnt/dados` e `/mnt/dados2`
+- **Configurações**: Centralizadas em `/mnt/config`
+- **Backups**: Automatizados diariamente em `/mnt/backup`
 
-## 📋 Serviços Incluídos
+## 🚀 Início Rápido
 
-- **Jellyfin** (8096) - Servidor de mídia (filmes, séries, música)
-- **Komga** (8082) - Servidor de quadrinhos/mangás
-- **Navidrome** (4533) - Servidor de música
-- **Samba** (445) - Compartilhamento de arquivos
-- **Portainer** (9020) - Monitoramento Docker
-- **Backup** - Sistema automatizado de backup
+### Pré-requisitos
+- ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
+- ✅ Docker Compose v2+
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445
+- ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
-## 🧩 Vantagens de cada serviço
+### Estrutura de Diretórios Obrigatória
+```powershell
+# Windows (PowerShell como Administrador)
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\jellyfin"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\komga"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\navidrome"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\portainer"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados2"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
+```
 
-- **Jellyfin**
-  - Vantagens: open source, suporte a múltiplos codecs, clientes para TV/desktop/mobile
-  - Quando usar: streaming de filmes e séries na rede local
-- **Komga**
-  - Vantagens: biblioteca rica para quadrinhos/mangás, leitura web responsiva
-  - Quando usar: organizar e ler sua coleção de HQs e mangás
-- **Navidrome**
-  - Vantagens: servidor leve de música, compatível com clientes Subsonic
-  - Quando usar: streaming de música para desktop e mobile
-- **Samba**
-  - Vantagens: compartilhamento de arquivos em rede, compatível com Windows/Linux/Mac
-  - Quando usar: montar pastas de mídia em outros dispositivos
-- **Portainer**
-  - Vantagens: painel web para gerenciar Docker, logs e updates
-  - Quando usar: administração simples dos containers e imagens
-- **Backup**
-  - Vantagens: rotina diária com retenção de 30 dias, tar.gz versionado
-  - Quando usar: proteger configurações e facilitar restauração
+```bash
+# Linux/Ubuntu
+sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
+sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup
+sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+```
 
-## 🔌 Tabela de Portas
+### Instalação e Execução
+1. **Clone ou baixe o projeto**
+2. **Configure a estrutura de diretórios** (veja acima)
+3. **Execute a stack**:
+```powershell
+docker compose up -d
+```
 
-| Serviço     | Porta Host |
-|-------------|------------|
-| Jellyfin    | 8096       |
-| Komga       | 8082       |
-| Navidrome   | 4533       |
-| Portainer   | 9020       |
-| Samba (SMB) | 445        |
+### Verificação do Status
+```powershell
+# Verificar containers em execução
+docker compose ps
 
+# Verificar logs de um serviço específico
+docker compose logs jellyfin --tail 50
+```
 
-## 🏗️ Estrutura Modular
+## 🌐 Acesso aos Serviços
 
+| Serviço | URL Local | Porta | Descrição |
+|---------|-----------|-------|-----------|
+| **Jellyfin** | http://localhost:8096 | 8096 | Streaming de filmes e séries |
+| **Komga** | http://localhost:8082 | 8082 | Biblioteca de quadrinhos |
+| **Navidrome** | http://localhost:4533 | 4533 | Streaming de música |
+| **Portainer** | http://localhost:9020 | 9020 | Gerenciamento Docker |
+| **Samba** | `\\localhost\Dados` | 445 | Compartilhamento de arquivos |
+
+### Primeiro Acesso
+
+#### 🎬 Jellyfin
+1. Acesse http://localhost:8096
+2. Configure conta de administrador
+3. Adicione bibliotecas de mídia:
+   - **Filmes**: `/media/dados/Filmes`
+   - **Séries**: `/media/dados/Series`
+   - **Música**: `/media/dados/Musica`
+4. Configure metadados e scrapers
+
+#### 📚 Komga
+1. Acesse http://localhost:8082
+2. Crie conta de administrador
+3. Adicione bibliotecas:
+   - **Quadrinhos**: `/data/Quadrinhos`
+   - **Mangás**: `/data2/Mangas`
+4. Configure leitura e metadados
+
+#### 🎵 Navidrome
+1. Acesse http://localhost:4533
+2. Configure conta inicial
+3. As pastas de música são detectadas automaticamente:
+   - `/music` (dados)
+   - `/music2` (dados2)
+4. Execute rescan da biblioteca
+
+#### 📁 Samba
+- **Windows**: Acesse `\\localhost\Dados` e `\\localhost\Dados2`
+- **Credenciais padrão**: `suporte` / `suporte123`
+- **Compartilhamentos**:
+  - `Dados` → `/mnt/dados`
+  - `Dados2` → `/mnt/dados2`
+  - `Config` → `/mnt/config`
+
+> ⚠️ **IMPORTANTE**: Altere as credenciais padrão do Samba em produção!
+
+## 🔧 Gerenciamento da Stack
+
+### Comandos Básicos
+```powershell
+# Iniciar todos os serviços
+docker compose up -d
+
+# Parar todos os serviços
+docker compose down
+
+# Ver status dos containers
+docker compose ps
+
+# Ver logs de um serviço específico
+docker compose logs [serviço] --tail 100
+
+# Atualizar imagens e reiniciar
+docker compose pull && docker compose up -d
+```
+
+### Gerenciamento Individual de Serviços
+```powershell
+# Iniciar serviço específico
+docker compose -f jellyfin/jellyfin.yml up -d
+docker compose -f komga/komga.yml up -d
+docker compose -f navidrome/navidrome.yml up -d
+docker compose -f fileserver/samba.yml up -d
+docker compose -f portainer/portainer.yml up -d
+
+# Parar serviço específico
+docker compose -f jellyfin/jellyfin.yml down
+```
+
+### Estrutura de Volumes
+Os dados são persistidos em volumes locais Docker:
+- `mediahome_jellyfin_config` - Configurações do Jellyfin
+- `mediahome_komga_config` - Configurações do Komga
+- `mediahome_navidrome_config` - Configurações do Navidrome
+- `mediahome_portainer_data` - Dados do Portainer
+- `mediahome_backup_data` - Dados do sistema de backup
+
+### Bind Mounts (Dados de Mídia)
+- `/mnt/dados` → Disco principal de mídia
+- `/mnt/dados2` → Disco secundário de mídia
+- `/mnt/config` → Configurações dos serviços
+- `/mnt/backup` → Backups automatizados
+
+## 💾 Sistema de Backup Automatizado
+
+### Características do Backup
+- **Frequência**: A cada 24 horas (configurável)
+- **Retenção**: 30 dias (configurável)
+- **Formato**: Arquivos `.tar.gz` compactados
+- **Localização**: `/mnt/backup/mediahome_config_YYYYMMDD_HHMMSS.tar.gz`
+- **Conteúdo**: Todas as configurações dos serviços
+- **Logs**: Auditoria completa em `/mnt/backup/backup.log`
+- **Health Check**: Monitoramento automático
+
+### Comandos de Backup
+```powershell
+# Verificar status do backup
+docker compose logs backup-configs --tail 50
+
+# Ver backups criados
+ls /mnt/backup/*.tar.gz
+
+# Ver log de auditoria
+cat /mnt/backup/backup.log
+
+# Forçar backup manual
+docker exec backup-configs /backup.sh
+```
+
+### Configurar Frequência do Backup
+Edite o arquivo `docker-compose.yml` na seção do serviço `backup-configs`:
+```yaml
+environment:
+  - BACKUP_INTERVAL=86400    # 24 horas (em segundos)
+  - RETENTION_DAYS=30        # Retenção em dias
+```
+
+**Exemplos de intervalos**:
+- 6 horas: `21600`
+- 12 horas: `43200`
+- 24 horas: `86400` (padrão)
+- 48 horas: `172800`
+
+### Restaurar Backup
+```powershell
+# Parar todos os serviços
+docker compose down
+
+# Listar backups disponíveis
+ls -lt /mnt/backup/mediahome_config_*.tar.gz
+
+# Restaurar backup mais recente (Linux)
+cd /mnt/backup
+LATEST_BACKUP=$(ls -t mediahome_config_*.tar.gz | head -1)
+tar -xzf $LATEST_BACKUP -C /mnt/config/
+
+# Restaurar backup específico (Windows)
+tar -xzf mediahome_config_20241016_140000.tar.gz -C /mnt/config/
+
+# Ajustar permissões (Linux)
+sudo chown -R 1000:1000 /mnt/config
+
+# Reiniciar serviços
+docker compose up -d
+```
+
+## 📁 Organização de Mídia Recomendada
+
+### Estrutura de Pastas
+```
+/mnt/dados/
+├── Filmes/
+│   ├── Ação/
+│   ├── Comédia/
+│   └── Drama/
+├── Series/
+│   ├── Breaking Bad/
+│   │   ├── Season 01/
+│   │   └── Season 02/
+│   └── Game of Thrones/
+├── Musica/
+│   ├── Rock/
+│   ├── Pop/
+│   └── Clássica/
+└── Documentarios/
+
+/mnt/dados2/
+├── Quadrinhos/
+│   ├── Marvel/
+│   ├── DC/
+│   └── Nacionais/
+├── Mangas/
+│   ├── Naruto/
+│   ├── One Piece/
+│   └── Attack on Titan/
+└── Ebooks/
+    ├── Ficção/
+    ├── Técnicos/
+    └── Biografias/
+```
+
+### Configurar Bibliotecas nos Apps
+
+#### Jellyfin
+1. Acesse **Dashboard → Libraries → Add Media Library**
+2. Configure os caminhos:
+   - **Filmes**: `/media/dados/Filmes`
+   - **Séries**: `/media/dados/Series`
+   - **Música**: `/media/dados/Musica`
+   - **Documentários**: `/media/dados/Documentarios`
+
+#### Komga
+1. Acesse **Admin → Libraries → New Library**
+2. Configure os caminhos:
+   - **Quadrinhos**: `/data/Quadrinhos`
+   - **Mangás**: `/data2/Mangas`
+
+#### Navidrome
+- Configuração automática para:
+  - `/music` (mapeado para `/mnt/dados/Musica`)
+  - `/music2` (mapeado para `/mnt/dados2/Musica`)
+
+## 🔗 Integração e Configurações Avançadas
+
+### Configurar Samba (Compartilhamento de Arquivos)
+
+#### Alterar Credenciais Padrão
+Edite o arquivo `fileserver/samba.yml`:
+```yaml
+command:
+  - "-u"
+  - "seu_usuario;sua_senha_segura"  # Altere estas credenciais
+```
+
+#### Acessar Compartilhamentos
+**Windows**:
+```cmd
+# Via Explorer
+\\SEU_IP\Dados
+\\SEU_IP\Dados2
+
+# Via linha de comando
+net use Z: \\SEU_IP\Dados /user:seu_usuario sua_senha_segura
+```
+
+**Linux**:
+```bash
+# Instalar cliente SMB
+sudo apt install -y smbclient cifs-utils
+
+# Acessar via smbclient
+smbclient //SEU_IP/Dados -U seu_usuario
+
+# Montar permanentemente
+sudo mount -t cifs //SEU_IP/Dados /mnt/dados_remoto \
+  -o username=seu_usuario,password=sua_senha_segura,uid=1000,gid=1000,vers=3.0
+```
+
+**macOS**:
+```bash
+# Via Finder
+# Go → Connect to Server: smb://SEU_IP/Dados
+```
+
+### Configurar Portainer
+1. Acesse http://localhost:9020
+2. Crie conta de administrador no primeiro acesso
+3. Conecte ao Docker local (endpoint automático)
+4. Gerencie containers, volumes e redes via interface web
+
+### Monitoramento e Logs
+```powershell
+# Status geral da stack
+docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+# Uso de recursos
+docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+
+# Logs agregados
+docker compose logs --tail=50 --follow
+
+# Verificar saúde dos serviços
+docker inspect --format='{{.Name}}: {{.State.Health.Status}}' $(docker ps -q)
+```
+
+## 🛠️ Solução de Problemas
+
+### Problemas Comuns
+
+#### Jellyfin não carrega
+```powershell
+# Verificar logs
+docker compose logs jellyfin --tail 100
+
+# Verificar permissões
+ls -la /mnt/config/jellyfin
+ls -la /mnt/dados
+
+# Recriar container
+docker compose restart jellyfin
+```
+
+#### Komga não encontra bibliotecas
+```powershell
+# Verificar logs
+docker compose logs komga --tail 100
+
+# Verificar caminhos internos
+docker exec komga ls -la /data /data2
+
+# Verificar permissões no host
+sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
+```
+
+#### Navidrome não detecta música
+```powershell
+# Verificar configuração
+docker compose logs navidrome --tail 100
+
+# Forçar rescan
+# Acesse http://localhost:4533 → Settings → Library → Rescan
+
+# Verificar caminhos
+docker exec navidrome ls -la /music /music2
+```
+
+#### Samba inacessível
+```powershell
+# Verificar se o serviço está rodando
+docker compose ps | findstr samba
+
+# Verificar logs
+docker compose logs samba --tail 100
+
+# Testar conectividade (Windows)
+Test-NetConnection -ComputerName localhost -Port 445
+
+# Verificar conflito de portas
+netstat -an | findstr ":445"
+```
+
+#### Backup não funciona
+```powershell
+# Verificar logs do backup
+docker compose logs backup-configs --tail 100
+
+# Verificar permissões
+ls -la /mnt/backup
+sudo chown -R 1000:1000 /mnt/backup
+
+# Verificar espaço em disco
+df -h /mnt/backup
+
+# Executar backup manual
+docker exec backup-configs /backup.sh
+```
+
+### Problemas de Permissão
+```bash
+# Linux - Ajustar permissões
+sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+```
+
+```powershell
+# Windows - Verificar compartilhamento
+# Certifique-se de que as pastas estão compartilhadas no Docker Desktop
+# Settings → Resources → File Sharing
+```
+
+### Recriar Containers
+```powershell
+# Recriar todos os containers
+docker compose down
+docker compose up -d --force-recreate
+
+# Recriar container específico
+docker compose up -d --force-recreate jellyfin
+```
+
+## 🔒 Segurança
+
+### Recomendações de Segurança
+- ✅ Altere **todas** as credenciais padrão (especialmente Samba)
+- ✅ Use senhas fortes (mínimo 16 caracteres)
+- ✅ Configure firewall para limitar acesso às portas
+- ✅ Use VPN para acesso remoto
+- ✅ Mantenha backups regulares e criptografados
+- ✅ Mantenha as imagens Docker atualizadas
+- ✅ Configure HTTPS para acesso externo
+
+### Configuração de Firewall
+```powershell
+# Windows Firewall
+New-NetFirewallRule -DisplayName "Jellyfin" -Direction Inbound -Protocol TCP -LocalPort 8096 -Action Allow
+New-NetFirewallRule -DisplayName "Komga" -Direction Inbound -Protocol TCP -LocalPort 8082 -Action Allow
+New-NetFirewallRule -DisplayName "Navidrome" -Direction Inbound -Protocol TCP -LocalPort 4533 -Action Allow
+New-NetFirewallRule -DisplayName "Portainer" -Direction Inbound -Protocol TCP -LocalPort 9020 -Action Allow
+New-NetFirewallRule -DisplayName "Samba" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow
+```
+
+```bash
+# Linux UFW
+sudo ufw allow 8096/tcp  # Jellyfin
+sudo ufw allow 8082/tcp  # Komga
+sudo ufw allow 4533/tcp  # Navidrome
+sudo ufw allow 9020/tcp  # Portainer
+sudo ufw allow 445/tcp   # Samba
+sudo ufw reload
+```
+
+### Exposição Segura (Reverse Proxy)
+Para expor os serviços na internet, use um reverse proxy com SSL:
+```nginx
+# Exemplo de configuração Nginx
+server {
+    listen 443 ssl;
+    server_name jellyfin.seudominio.com;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8096;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support para Jellyfin
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+## 📊 Monitoramento e Métricas
+
+### Portainer - Interface de Gerenciamento
+- **URL**: http://localhost:9020
+- **Funcionalidades**:
+  - Visualização de containers, volumes e redes
+  - Logs centralizados de todos os serviços
+  - Monitoramento de recursos (CPU, RAM, rede)
+  - Gerenciamento visual de stacks
+  - Atualizações de imagens via interface
+  - Estatísticas de uso e performance
+
+### Comandos de Monitoramento
+```powershell
+# Status detalhado da stack
+docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+
+# Uso de recursos em tempo real
+docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+
+# Verificar volumes
+docker volume ls | findstr mediahome
+
+# Verificar espaço em disco
+docker system df
+
+# Logs agregados com timestamp
+docker compose logs --timestamps --tail=100
+```
+
+### Health Checks
+```powershell
+# Verificar saúde de todos os containers
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Verificar container específico
+docker inspect jellyfin --format='{{.State.Health.Status}}'
+
+# Testar conectividade dos serviços
+Test-NetConnection -ComputerName localhost -Port 8096  # Jellyfin
+Test-NetConnection -ComputerName localhost -Port 8082  # Komga
+Test-NetConnection -ComputerName localhost -Port 4533  # Navidrome
+Test-NetConnection -ComputerName localhost -Port 9020  # Portainer
+```
+
+## 🚀 Implantação em Produção (Ubuntu + aaPanel)
+
+### 1. Preparar Servidor Ubuntu
+```bash
+# Atualizar sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar Docker
+sudo apt install -y docker.io docker-compose-plugin git curl
+sudo usermod -aG docker $USER && newgrp docker
+
+# Verificar instalação
+docker --version
+docker compose version
+```
+
+### 2. Configurar Estrutura de Diretórios
+```bash
+# Criar diretórios
+sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
+sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup
+
+# Ajustar permissões
+sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+```
+
+### 3. Configurar Montagem de Discos
+#### Para Discos Locais (ext4)
+```bash
+# Identificar discos
+lsblk -f
+
+# Obter UUIDs
+sudo blkid
+
+# Configurar montagem automática
+sudo nano /etc/fstab
+
+# Adicionar linhas (substitua pelos UUIDs reais)
+UUID=seu-uuid-dados  /mnt/dados   ext4  defaults,noatime  0  2
+UUID=seu-uuid-dados2 /mnt/dados2  ext4  defaults,noatime  0  2
+
+# Aplicar configuração
+sudo systemctl daemon-reload
+sudo mount -a
+```
+
+#### Para Compartilhamentos SMB Remotos
+```bash
+# Instalar cliente CIFS
+sudo apt install -y cifs-utils
+
+# Criar arquivo de credenciais
+sudo bash -c 'cat >/etc/samba-cred <<EOF
+username=seu_usuario
+password=sua_senha
+EOF'
+sudo chmod 600 /etc/samba-cred
+
+# Configurar montagem automática
+sudo nano /etc/fstab
+
+# Adicionar linhas
+//IP_SERVIDOR/Dados  /mnt/dados  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+//IP_SERVIDOR/Dados2 /mnt/dados2 cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
+
+# Aplicar configuração
+sudo systemctl daemon-reload
+sudo mount -a
+```
+
+### 4. Clonar e Configurar Projeto
+```bash
+# Clonar projeto
+git clone <URL_DO_REPOSITORIO>
+cd MediaHome
+
+# Ajustar configurações se necessário
+# Editar docker-compose.yml para caminhos específicos
+```
+
+### 5. Configurar Firewall
+```bash
+# Configurar UFW
+sudo ufw allow 8096/tcp  # Jellyfin
+sudo ufw allow 8082/tcp  # Komga
+sudo ufw allow 4533/tcp  # Navidrome
+sudo ufw allow 9020/tcp  # Portainer
+sudo ufw allow 445/tcp   # Samba
+sudo ufw reload
+```
+
+### 6. Iniciar Stack
+```bash
+# Iniciar todos os serviços
+docker compose up -d
+
+# Verificar status
+docker compose ps
+
+# Verificar logs
+docker compose logs --tail=50
+```
+
+### 7. Configurar aaPanel (Reverse Proxy)
+1. **Instalar aaPanel**:
+```bash
+wget -O install.sh http://www.aapanel.com/script/install-ubuntu_6.0_en.sh
+sudo bash install.sh
+```
+
+2. **Configurar Nginx via aaPanel**:
+   - Acesse o painel aaPanel
+   - Instale Nginx via App Store
+   - Crie sites para cada serviço:
+     - `jellyfin.seudominio.com` → `http://127.0.0.1:8096`
+     - `komga.seudominio.com` → `http://127.0.0.1:8082`
+     - `music.seudominio.com` → `http://127.0.0.1:4533`
+     - `portainer.seudominio.com` → `http://127.0.0.1:9020`
+
+3. **Configurar SSL**:
+   - Para cada site, configure SSL via Let's Encrypt
+   - Habilite redirecionamento HTTPS
+
+### 8. Teste e Validação
+```bash
+# Testar conectividade local
+curl -I http://localhost:8096  # Jellyfin
+curl -I http://localhost:8082  # Komga
+curl -I http://localhost:4533  # Navidrome
+curl -I http://localhost:9020  # Portainer
+
+# Verificar Samba
+smbclient -L localhost -U seu_usuario
+
+# Verificar backups
+ls -la /mnt/backup/
+```
+
+## 📚 Recursos Adicionais
+
+### Documentação Oficial
+- [Jellyfin Documentation](https://jellyfin.org/docs/)
+- [Komga Documentation](https://komga.org/guides/)
+- [Navidrome Documentation](https://www.navidrome.org/docs/)
+- [Samba Documentation](https://www.samba.org/samba/docs/)
+- [Portainer Documentation](https://docs.portainer.io/)
+
+### Estrutura do Projeto
 ```
 MediaHome/
-├── docker-compose.yml          # Compose principal (inclui todos os serviços)
-├── README.md
+├── docker-compose.yml          # Orquestração principal
+├── README.md                   # Esta documentação
 ├── jellyfin/
 │   └── jellyfin.yml           # Serviço Jellyfin independente
 ├── komga/
 │   └── komga.yml              # Serviço Komga independente
 ├── navidrome/
 │   └── navidrome.yml          # Serviço Navidrome independente
+├── fileserver/
+│   └── samba.yml              # Serviço Samba independente
 ├── portainer/
-│   └── portainer.yml          # Serviço Portainer independente
-└── fileserver/
-    └── samba.yml              # Serviço Samba independente
+│   └── portainer.yml          # Interface de gerenciamento
+└── backup/
+    └── backup.yml             # Sistema de backup
 ```
 
-## 🚀 Como Usar
+## 🎯 Casos de Uso
 
-### Iniciar Todos os Serviços
-```bash
-# Compose v2 (recomendado)
-docker compose up -d
+### Streaming Doméstico
+1. **Organização**: Centralize toda mídia em `/mnt/dados` e `/mnt/dados2`
+2. **Acesso**: Streaming via Jellyfin para TVs, tablets e smartphones
+3. **Música**: Navidrome para streaming de música em qualquer dispositivo
+4. **Leitura**: Komga para biblioteca digital de quadrinhos e mangás
 
-# Se estiver usando Compose v1
-docker-compose up -d
-```
+### Compartilhamento de Arquivos
+1. **Upload**: Adicione novos arquivos via Samba
+2. **Organização**: Mantenha estrutura de pastas consistente
+3. **Acesso**: Compartilhe com família via rede local
+4. **Backup**: Sistema automatizado protege configurações
 
-### Iniciar Serviço Específico
-```bash
-# Compose v2
-docker compose -f jellyfin/jellyfin.yml up -d
-docker compose -f komga/komga.yml up -d
-docker compose -f navidrome/navidrome.yml up -d
-docker compose -f fileserver/samba.yml up -d
-docker compose -f portainer/portainer.yml up -d
-```
+### Gerenciamento Centralizado
+1. **Monitoramento**: Portainer para visão geral da infraestrutura
+2. **Logs**: Centralizados para troubleshooting
+3. **Atualizações**: Gerenciamento de imagens via interface web
+4. **Recursos**: Monitoramento de CPU, RAM e armazenamento
 
-## ⚙️ Pré-requisitos
+## 🚀 Próximos Passos
 
-1. **Docker** e **Docker Compose** instalados
-2. **Estrutura de diretórios** criada:
-   ```bash
-   # Configurações (SSD recomendado)
-   sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
-   
-   # Mídia (HDs)
-   sudo mkdir -p /mnt/dados /mnt/dados2
-   
-   # Backup
-   sudo mkdir -p /mnt/backup
-   
-   # Ajustar permissões
-   sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
-   ```
+### Melhorias Recomendadas
+- [ ] Implementar Traefik para roteamento automático
+- [ ] Configurar autenticação SSO (Authelia/Keycloak)
+- [ ] Implementar monitoramento com Prometheus/Grafana
+- [ ] Configurar backup remoto (Rclone/Restic)
+- [ ] Implementar transcodificação de vídeo otimizada
+- [ ] Configurar CDN para acesso externo
 
-## 🔧 Configuração
-
-### Ajustar Caminhos
-Edite os arquivos `.yml` conforme sua estrutura de diretórios:
-- **Configurações**: `/mnt/config/[serviço]`
-- **Mídia**: `/mnt/dados` e `/mnt/dados2`
-- **Backup**: `/mnt/backup`
-
-### Configurar Credenciais Samba
-**⚠️ IMPORTANTE**: Altere as credenciais padrão no arquivo `fileserver/samba.yml`:
-```yaml
-command:
-  - "-u"
-  - "suporte;suporte123"  # ← ALTERE ESTAS CREDENCIAIS
-```
-
-### Ajustar PUID/PGID
-Se necessário, altere os valores nos arquivos de serviço:
-```yaml
-environment:
-  - PUID=1000  # ← Seu User ID
-  - PGID=1000  # ← Seu Group ID
-```
-
-### Configurar Portainer (Primeira Execução)
-1. Acesse http://localhost:9000 após iniciar o serviço
-2. Crie uma conta de administrador na primeira execução
-3. Conecte ao Docker local (endpoint já configurado automaticamente)
-
-## 🌐 URLs de Acesso (LAN)
-
-- **Jellyfin**: http://192.168.0.121:8096
-- **Komga**: http://192.168.0.121:8082
-- **Navidrome**: http://192.168.0.121:4533
-- **Portainer**: http://192.168.0.121:9020
-- **Samba**: `smb://192.168.0.121/Dados` (Linux/Mac/Windows)
-
-> Dica: em produção, utilize aaPanel/Nginx como proxy reverso com SSL e nomes de host (ex.: `jellyfin.seu-dominio`).
-
-## 💾 Sistema de Backup
-
-- **Frequência**: Diário (24h)
-- **Retenção**: 30 dias
-- **Localização**: `/mnt/backup/mediahome_config_YYYYMMDD_HHMMSS.tar.gz`
-- **Conteúdo**: Todas as configurações dos serviços
-
-## 📝 Comandos Úteis
-
-```bash
-# Ver logs de todos os serviços
-docker-compose logs -f
-
-# Ver logs de serviço específico
-docker-compose logs -f jellyfin
-
-# Parar todos os serviços
-docker-compose down
-
-# Parar serviço específico
-docker-compose -f jellyfin/jellyfin.yml down
-
-# Atualizar imagens
-docker-compose pull
-docker-compose up -d
-
-# Ver status dos containers
-docker-compose ps
-
-# Reiniciar serviço específico
-docker-compose restart jellyfin
-
-# Acessar logs do Portainer
-docker-compose -f portainer/portainer.yml logs -f
-```
-
-## 🔒 Segurança
-
-1. **Altere as credenciais padrão do Samba**
-2. Configure firewall para limitar acesso às portas
-3. Use VPN para acesso remoto
-4. Mantenha backups atualizados
-5. Atualize regularmente as imagens Docker
-
-## 🛠️ Solução de Problemas
-
-### Problemas de Permissão
-```bash
-sudo chown -R 1000:1000 /mnt/config
-sudo chmod -R 755 /mnt/config
-```
-
-### Verificar Logs
-```bash
-docker-compose logs [nome_do_serviço]
-```
-
-### Recriar Containers
-```bash
-docker-compose down
-docker-compose up -d --force-recreate
-```
-
-### Rede não encontrada
-Se houver erro de rede ao iniciar serviços individuais:
-```bash
-# Criar rede externa compartilhada (idempotente)
-docker network create app_network
-
-# Ou iniciar o compose principal primeiro
-docker compose up -d
-```
+### Integrações Futuras
+- [ ] Sonarr/Radarr para automação de downloads
+- [ ] Plex/Emby como alternativa ao Jellyfin
+- [ ] Nextcloud para sincronização de arquivos
+- [ ] Home Assistant para automação doméstica
+- [ ] VPN (WireGuard) para acesso remoto seguro
 
 ---
 
-## 🚀 Implantação em Ubuntu + aaPanel (IP 192.168.0.121)
+> 💡 **Dica**: Esta stack foi configurada para usar volumes e redes locais, garantindo isolamento e facilidade de deploy. Todos os dados de mídia são acessados via bind mounts para máxima performance.
 
-### 1) Preparar servidor
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y docker.io docker-compose-plugin git curl
-sudo usermod -aG docker $USER && newgrp docker
-```
-
-### 2) Clonar projeto
-```bash
-git clone <URL_DO_REPO>
-cd MediaHome
-```
-
-### 3) Rede Docker
-Este projeto usa uma rede externa compartilhada `app_network` para coexistir com outras stacks.
-```bash
-docker network create app_network || true
-```
-
-### 4) Estrutura de diretórios
-```bash
-sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
-sudo mkdir -p /mnt/dados /mnt/dados2
-sudo mkdir -p /mnt/backup
-sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
-```
-
-### 4.1) Montar os discos /mnt/dados e /mnt/dados2 (persistente)
-
-Escolha o cenário que corresponde ao seu ambiente e siga os passos para garantir que os discos sejam montados automaticamente em todo boot.
-
-#### Cenário A — Discos locais (Ubuntu, ext4)
-
-1) Identificar partições/discos:
-```bash
-lsblk -f
-```
-
-2) (Opcional) Formatar como ext4 caso o disco esteja em branco — ATENÇÃO: apaga todos os dados:
-```bash
-sudo mkfs.ext4 /dev/sdX1  # substitua sdX1 pela partição correta
-```
-
-3) Obter os UUIDs das partições:
-```bash
-sudo blkid /dev/sdX1 /dev/sdY1  # ajuste conforme seus dispositivos
-```
-
-4) Editar `/etc/fstab` para montar no boot (use os UUIDs obtidos):
-```bash
-sudo nano /etc/fstab
-
-# Exemplo (ext4 com noatime)
-UUID=<UUID_DADOS>  /mnt/dados   ext4  defaults,noatime  0  2
-UUID=<UUID_DADOS2> /mnt/dados2  ext4  defaults,noatime  0  2
-```
-
-Exemplo real (com base no seu `lsblk`/`blkid`):
-
-- `sdb1` — ext4, label `Dados2`, UUID `23974e63-63e1-4936-8839-5e530415daeb` → montar em `/mnt/dados2`
-- `sdc1` — ext4, label `Dados`,  UUID `470a25c1-b71b-44d6-94e3-907aa10043d6` → montar em `/mnt/dados`
-
-Adição no `/etc/fstab` (copie exatamente):
-```fstab
-UUID=470a25c1-b71b-44d6-94e3-907aa10043d6  /mnt/dados   ext4  defaults,noatime  0  2
-UUID=23974e63-63e1-4936-8839-5e530415daeb  /mnt/dados2  ext4  defaults,noatime  0  2
-```
-
-Validação:
-```bash
-sudo mount -a
-ls -la /mnt/dados /mnt/dados2
-```
-
-5) Aplicar e validar:
-```bash
-sudo systemctl daemon-reload  # recarrega mudanças do fstab no systemd
-sudo mount -a
-ls -la /mnt/dados /mnt/dados2
-```
-
-#### Cenário B — Compartilhamentos SMB (outro servidor)
-
-1) Instalar utilitários CIFS:
-```bash
-sudo apt install -y cifs-utils
-```
-
-2) Criar arquivo de credenciais seguro:
-```bash
-sudo bash -c 'cat >/etc/samba-cred <<EOF
-username=SEU_USUARIO
-password=SEU_SEGREDO
-EOF'
-sudo chmod 600 /etc/samba-cred
-```
-
-3) Editar `/etc/fstab` para montagem persistente:
-```bash
-sudo nano /etc/fstab
-
-# Publicação padrão (Samba em 445:445)
-//SEU_IP/Dados   /mnt/dados   cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-//SEU_IP/Dados2  /mnt/dados2  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-
-# Desenvolvimento no Windows (se publicar 1445:445), acrescente port=1445
-# //SEU_IP/Dados   /mnt/dados   cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,port=1445,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-# //SEU_IP/Dados2  /mnt/dados2  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,port=1445,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-```
-
-4) Aplicar e validar:
-```bash
-sudo systemctl daemon-reload  # recarrega mudanças do fstab no systemd
-sudo mount -a
-ls -la /mnt/dados /mnt/dados2
-```
-
-Observações:
-- Garanta que `/mnt/dados` e `/mnt/dados2` existem (já criados na etapa 4) e têm `uid=1000`.
-- Em produção (Ubuntu), prefira publicação `445:445` no Samba e abra `445/tcp` no UFW.
-- Não monte SMB dentro dos containers; monte no host e use bind mounts (já configurado nos `.yml`).
-
-### 5) Subir serviços
-```bash
-docker compose up -d
-docker ps
-```
-
-### 6) Abrir portas no firewall (UFW)
-```bash
-sudo ufw allow 8096/tcp 8082/tcp 4533/tcp 9020/tcp 445/tcp
-sudo ufw reload
-```
-
-### 7) Configurar aaPanel (reverse proxy)
-- Acesse `http://192.168.0.121:8888`
-- Instale Nginx via App Store
-- Crie sites/domínios e configure proxy reverso para cada serviço:
-  - `jellyfin.seu-dominio` → `http://192.168.0.121:8096`
-  - `komga.seu-dominio` → `http://192.168.0.121:8082`
-  - `musica.seu-dominio` → `http://192.168.0.121:4533`
-  - `portainer.seu-dominio` → `http://192.168.0.121:9020`
-
-Trecho Nginx padrão (em cada site):
-```
-location / {
-  proxy_pass http://192.168.0.121:PORTA_ALVO;
-  proxy_set_header Host $host;
-  proxy_set_header X-Real-IP $remote_addr;
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-### 8) SSL (Let's Encrypt)
-No aaPanel, em cada site: “SSL” → “Let’s Encrypt” → emitir certificados. Habilite redirecionamento HTTPS.
-
-### 9) Testes rápidos
-```bash
-curl -I http://192.168.0.121:8096
-curl -I http://192.168.0.121:8082
-curl -I http://192.168.0.121:4533
-curl -I http://192.168.0.121:9020
-```
-
-### 10) Observações
-- Samba usa a porta 445 por padrão; exponha `445:445` em produção. No Windows, se 445 estiver ocupado pelo serviço nativo, ajuste para `1445:445` ou utilize outro dispositivo/WSL.
-- Caso já exista MinIO usando 9000/9001, Portainer desta stack está em 9020 para coexistir com outra stack.
-
-## 🤝 Contribuição
-
-PRs e issues são bem-vindos. Sugestões comuns:
-- Adicionar healthchecks por serviço (`healthcheck:`)
-- Centralizar portas em `.env` e referenciar nos YAML
-- Integrar Traefik/Nginx com TLS e autenticação
-- Automatizar backups com Restic/Rclone e verificação de integridade
-
-## 📄 Licença
-
-Projeto para uso pessoal/doméstico. Verifique licenças individuais dos serviços utilizados.
-
-## 🧠 Samba — Credenciais e Montagem
-
-- Credenciais atuais:
-  - Usuário: `suporte`
-  - Senha: `suporte123`
-- Compartilhamentos (shares):
-  - `Dados` → `/mnt/dados`
-  - `Dados2` → `/mnt/dados2`
-  - `Config` → `/mnt/config`
-
-Como acessar na LAN (`192.168.0.121`):
-- Windows:
-  - Explorador: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`
-  - Mapear unidade (ex.): `net use Z: \\192.168.0.121\Dados /user:suporte suporte123`
-- Linux:
-  - `sudo apt install smbclient cifs-utils`
-  - `smbclient //192.168.0.121/Dados -U suporte`
-  - Montar via CIFS (ex.):
-    - `sudo mount -t cifs //192.168.0.121/Dados /mnt/dados_client -o username=suporte,password=suporte123,uid=1000,gid=1000,vers=3.0`
-- macOS:
-  - Finder → Go → Connect to Server: `smb://192.168.0.121/Dados`
-
-Portas e produção:
-- Desenvolvimento no Windows: ajuste a publicação para `1445:445` se a `445` estiver ocupada pelo SMB do host.
-- Produção no Ubuntu: preferir `445:445` e abrir `445/tcp` no UFW.
-
-Segurança e boas práticas:
-- Troque as credenciais acima em produção por senhas fortes.
-- Se quiser somente leitura, ajuste o share para `readonly`.
-- Restrinja acesso por rede/sub-rede conforme necessidade (ex.: `192.168.0.0/24`).
-
-### Produção (Ubuntu)
-
-- Para produção, utilize `fileserver/samba.yml` ajustando a publicação de portas para `445:445`.
-- Abra a porta no firewall: `sudo ufw allow 445/tcp`.
-- Suba o serviço: `docker compose -f fileserver/samba.yml up -d`.
-- Acesso no Windows: `\\192.168.0.121\Dados` e `\\192.168.0.121\Dados2`.
-
-### Samba no Windows (host)
-
-- Limitação: o cliente SMB do Windows usa sempre a porta `445` e não permite especificar outra. No host Windows, o serviço SMB nativo ocupa `445`, por isso o container exposto em `1445:445` não pode ser acessado via Explorer (`\\localhost\Dados`).
-- Opções de acesso:
-  - WSL/Ubuntu (se usar publicação alternativa `1445:445`): monte com CIFS usando `port=1445` e acesse via `\\wsl$`:
-    - `sudo apt install cifs-utils`
-    - `sudo mkdir -p /mnt/dados_client /mnt/dados2_client`
-    - `sudo mount -t cifs //localhost/Dados /mnt/dados_client -o username=suporte,password=suporte123,port=1445,vers=3.0`
-    - `sudo mount -t cifs //localhost/Dados2 /mnt/dados2_client -o username=suporte,password=suporte123,port=1445,vers=3.0`
-    - Acesse pelo Explorer: `\\wsl$\Ubuntu\mnt\dados_client`
-  - Outro dispositivo Linux/macOS: montar SMB especificando `port=1445` (Linux) ou usar cliente compatível.
-  - Produção (Ubuntu): exponha `445:445` e abra `445/tcp` no UFW; Windows acessa direto `\\192.168.0.121\Dados`.
-  - Alternativa não recomendada: desativar o SMB do Windows e mapear `445:445` no container.
-- Nota: o Samba é para clientes externos. Entre containers, o acesso aos discos já é feito via bind mounts (`/mnt/dados` e `/mnt/dados2`) nos YAML dos serviços.
-
-### Samba — porta em uso ou conflito de container (produção)
-Se ao iniciar o Samba em produção você ver erros como:
-- `failed to bind port 0.0.0.0:445/tcp ... address already in use`
-- `You have to remove (or rename) that container to be able to reuse that name`
-
-Siga estas etapas:
-```bash
-# 1) Remover/derrubar qualquer container antigo chamado "samba"
-docker rm -f samba || true
-docker compose -f fileserver/samba.yml down || true
-
-# 2) Parar e desabilitar os serviços Samba nativos do host (liberam 445)
-sudo systemctl stop smbd nmbd
-sudo systemctl disable smbd nmbd
-
-# 3) Verificar se a porta está livre
-sudo ss -tulpn | grep -E ':445' || true
-
-# 4) Ajustar publicação para produção (445:445) em fileserver/samba.yml
-# 5) Subir o Samba do projeto
-docker compose -f fileserver/samba.yml up -d
-
-# 6) Abrir firewall (se necessário)
-sudo ufw allow 445/tcp
-sudo ufw reload
-```
-
-Notas importantes:
-- Não rode dois containers Samba ao mesmo tempo; mesmo com nomes diferentes eles competem pela porta `445`.
-- Para produção, utilize apenas `445:445` e evite expor `139`.
-- Após subir, acesse do Windows via `\\SEU_IP\Dados` e `\\SEU_IP\Dados2`.
-
-### Containers não reconhecem caminhos de rede (SMB)
-Containers não acessam diretamente caminhos de rede como `\\host\Dados`. Eles precisam de caminhos locais do host (bind mounts). Se os dados estão em outro servidor/host, monte os compartilhamentos SMB no host onde os containers rodam e, só então, referencie esses caminhos locais no YAML.
-
-Passo a passo (Ubuntu):
-```bash
-# 1) Criar pontos de montagem locais
-sudo mkdir -p /mnt/dados /mnt/dados2
-
-# 2) Montar os compartilhamentos SMB no host
-sudo apt install -y cifs-utils
-sudo mount -t cifs //SEU_IP/Dados /mnt/dados \
-  -o username=SEU_USUARIO,password=SEU_SEGREDO,vers=3.0,uid=1000,gid=1000,iocharset=utf8,file_mode=0644,dir_mode=0755
-
-sudo mount -t cifs //SEU_IP/Dados2 /mnt/dados2 \
-  -o username=SEU_USUARIO,password=SEU_SEGREDO,vers=3.0,uid=1000,gid=1000,iocharset=utf8,file_mode=0644,dir_mode=0755
-
-# 3) Verificar conteúdo
-ls -la /mnt/dados
-ls -la /mnt/dados2
-
-# 4) Subir/reativar os serviços para que enxerguem os caminhos
-docker compose up -d
-```
-
-Persistência no boot (`/etc/fstab`):
-```bash
-sudo bash -c 'cat >/etc/samba-cred <<EOF\nusername=SEU_USUARIO\npassword=SEU_SEGREDO\nEOF'
-sudo chmod 600 /etc/samba-cred
-
-sudo bash -c 'cat >>/etc/fstab <<EOF\n//SEU_IP/Dados  /mnt/dados  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0\n//SEU_IP/Dados2 /mnt/dados2 cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0\nEOF'
-
-sudo mount -a
-```
-
-Importante:
-- Os serviços podem referenciar diretamente os pontos de montagem: `/mnt/dados` e `/mnt/dados2`.
-- Organize suas pastas internamente conforme preferir e ajuste os `.yml` se necessário.
-- Evite montar SMB dentro do container; monte no host e use bind mounts. Isto simplifica permissões e melhora desempenho.
-
-
-## 📚 Configurar Bibliotecas nos Apps
-
-Para que os apps reconheçam os discos montados via bind mounts, informe explicitamente os caminhos internos do container ao criar as bibliotecas.
-
-- Jellyfin
-  - Vá em `Dashboard → Libraries → Add Media Library`.
-  - Em `Folders`, digite manualmente os caminhos:
-    - Utilize os pontos: `/media/dados` e `/media/dados2` (escolha subpastas dentro deles conforme sua organização).
-  - Dica: se o navegador de pastas não listar `/media`, digite o caminho direto e salve.
-  - Verificação opcional:
-    - `docker exec -it jellyfin ls -la /media/dados /media/dados2`
-
-- Komga
-  - Vá em `Admin → Libraries → New Library`.
-  - Informe o caminho da biblioteca como `/data` (disco 1) e/ou `/data2` (disco 2).
-  - Verificação:
-    - `docker exec -it komga ls -la /data /data2`
-
-- Navidrome
-  - Já configurado para múltiplas pastas com `ND_MUSICFOLDERS=/music,/music2`.
-  - Vá em `Settings → Library` e clique em `Rescan`.
-  - Verificação:
-    - `docker exec -it navidrome ls -la /music /music2`
-
- Se algum caminho não existir dentro do container, verifique no host:
-```bash
-ls -la /mnt/dados /mnt/dados2
-sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
-```
-
-## 📞 Suporte
-
-Para problemas específicos:
-1. Verifique os logs do serviço
-2. Confirme as permissões dos diretórios
-3. Verifique se as portas não estão em uso
-4. Consulte a documentação oficial de cada serviço
+> ⚠️ **Importante**: Sempre altere as credenciais padrão do Samba e mantenha backups regulares. Para acesso externo, use sempre HTTPS e autenticação adequada.

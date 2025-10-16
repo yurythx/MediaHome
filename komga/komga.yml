@@ -23,7 +23,5 @@ services:
     networks:
       - mediahome
 
-networks:
-  mediahome:
-    external: true
-    name: app_network
+volumes:
+  komga_config:

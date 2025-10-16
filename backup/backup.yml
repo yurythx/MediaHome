@@ -1,0 +1,141 @@
+# =========================================================
+# SISTEMA DE BACKUP AUTOMATIZADO - PROJETO MEDIAHOME
+# =========================================================
+# Descrição: Sistema de backup diário automatizado para configurações
+#            e dados do projeto MediaHome (Jellyfin, Komga, Navidrome, Samba)
+# Frequência: Diária (24h)
+# Retenção: 30 dias
+# Formato: .tar.gz compactado
+# Localização: /mnt/backup/
+# Conteúdo: Configurações dos serviços MediaHome
+# =========================================================
+
+services:
+  backup-mediahome:
+    image: alpine:latest
+    container_name: backup-configs
+    restart: unless-stopped
+    
+    # Configurações de timezone
+    environment:
+      - TZ=America/Sao_Paulo
+      - BACKUP_INTERVAL=86400  # 24 horas em segundos
+      - BACKUP_RETENTION=30    # Manter backups por 30 dias
+      - PROJECT_NAME=mediahome
+      - BACKUP_PREFIX=mediahome_config
+    
+    # Mapeamento de volumes
+    volumes:
+      - /mnt/config:/backup/source:ro
+      - /mnt/backup:/backup/destination
+    
+    # Health check padronizado
+    healthcheck:
+      test: ["CMD", "sh", "-c", "find /backup/destination -name 'mediahome_config_*.tar.gz' -mtime -2 | grep -q ."]
+      interval: 1h
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+    
+    # Comando de inicialização
+    command: >
+      sh -c "
+        echo '=== SISTEMA DE BACKUP MEDIAHOME INICIADO ===' &&
+        echo 'Projeto: MediaHome (Jellyfin + Komga + Navidrome + Samba)' &&
+        echo 'Frequência: Diária (24h)' &&
+        echo 'Retenção: 30 dias' &&
+        echo 'Destino: /mnt/backup/' &&
+        echo '====================================================' &&
+        
+        # Instalar dependências
+        apk add --no-cache tar gzip coreutils findutils &&
+        
+        # Criar diretório de backup se não existir
+        mkdir -p /backup/destination &&
+        
+        # Loop infinito para backups periódicos
+        while true; do
+          echo '' &&
+          echo '[$(date)] === INICIANDO BACKUP MEDIAHOME ===' &&
+          
+          # Definir nome do arquivo de backup
+          BACKUP_DATE=$(date +%Y%m%d_%H%M%S) &&
+          BACKUP_FILE=\"$${BACKUP_PREFIX}_$${BACKUP_DATE}.tar.gz\" &&
+          BACKUP_PATH=\"/backup/destination/$${BACKUP_FILE}\" &&
+          
+          echo '[$(date)] Criando backup: $${BACKUP_FILE}' &&
+          
+          # Criar backup compactado das configurações
+          cd /backup/source &&
+          if [ -d . ] && [ \"$(ls -A .)\" ]; then
+            tar -czf \"$${BACKUP_PATH}\" . 2>/dev/null &&
+            echo '[$(date)] ✅ Backup das configurações criado com sucesso!'
+          else
+            echo '[$(date)] ⚠️ AVISO: Diretório de configurações vazio. Criando backup vazio...' &&
+            tar -czf \"$${BACKUP_PATH}\" --files-from /dev/null 2>/dev/null &&
+            echo '[$(date)] ℹ️ Backup vazio criado (configurações não disponíveis)'
+          fi &&
+          
+          # Verificar se o backup foi criado com sucesso
+          if [ -f \"$${BACKUP_PATH}\" ]; then
+            BACKUP_SIZE=$(du -h \"$${BACKUP_PATH}\" | cut -f1) &&
+            echo '[$(date)] ✅ Backup criado com sucesso!' &&
+            echo '[$(date)] 📁 Arquivo: $${BACKUP_FILE}' &&
+            echo '[$(date)] 📊 Tamanho: $${BACKUP_SIZE}' &&
+            
+            # Verificar integridade do backup
+            echo '[$(date)] 🔍 Verificando integridade...' &&
+            if tar -tzf \"$${BACKUP_PATH}\" >/dev/null 2>&1; then
+              echo '[$(date)] ✅ Integridade verificada com sucesso!' &&
+              
+              # Remover backups antigos (manter apenas os últimos 30 dias)
+              echo '[$(date)] 🧹 Removendo backups antigos...' &&
+              find /backup/destination -name \"$${BACKUP_PREFIX}_*.tar.gz\" -type f -mtime +$${BACKUP_RETENTION} -delete &&
+              
+              # Contar backups restantes
+              BACKUP_COUNT=$(find /backup/destination -name \"$${BACKUP_PREFIX}_*.tar.gz\" -type f | wc -l) &&
+              echo '[$(date)] 📈 Total de backups mantidos: $${BACKUP_COUNT}' &&
+              echo '[$(date)] ✅ Backup concluído com sucesso!' &&
+              echo '[$(date)] ⏰ Próximo backup em: $${BACKUP_INTERVAL} segundos (24h)'
+            else
+              echo '[$(date)] ❌ ERRO: Backup corrompido detectado!' &&
+              rm -f \"$${BACKUP_PATH}\" &&
+              echo '[$(date)] 🗑️ Backup corrompido removido'
+            fi
+          else
+            echo '[$(date)] ❌ ERRO: Falha ao criar backup!'
+          fi &&
+          
+          echo '[$(date)] === BACKUP MEDIAHOME FINALIZADO ===' &&
+          echo '' &&
+            
+          
+          # Aguardar próximo ciclo
+          sleep $${BACKUP_INTERVAL}
+        done
+      "
+    
+    # Rede compartilhada
+    networks:
+      - mediahome
+    
+    # Labels para organização
+    labels:
+      - "com.projeto.mediahome.backup=true"
+      - "com.projeto.mediahome.service=backup"
+      - "com.projeto.mediahome.version=1.0"
+
+networks:
+  mediahome:
+    driver: bridge
+
+# =========================================================
+# CONFIGURAÇÕES DE BACKUP:
+# =========================================================
+# - Execução: A cada 24 horas (configurável via BACKUP_INTERVAL)
+# - Retenção: 30 dias (configurável via BACKUP_RETENTION)
+# - Logs: Detalhados com timestamps no formato [$(date)]
+# - Health Check: Monitora backups criados nas últimas 48h
+# - Integridade: Verifica cada backup criado
+# - Labels: Organizacionais para identificação do serviço
+# =========================================================
