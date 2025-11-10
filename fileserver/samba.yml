@@ -16,7 +16,7 @@ services:
       - /mnt/dados2:/dados2
       - /mnt/config:/config
     ports:
-      - "1445:445"
+      - "445:445"
     command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "suporte;suporte123" -p'
     networks:
       - mediahome
