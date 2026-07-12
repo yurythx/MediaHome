@@ -1,0 +1,37 @@
+name: Validate Docker Compose
+
+on:
+  push:
+    paths:
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".env.example"
+      - ".github/workflows/validate-compose.yml"
+  pull_request:
+    paths:
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".env.example"
+      - ".github/workflows/validate-compose.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar .env de validação (a partir do .env.example)
+        run: cp .env.example .env
+
+      - name: Validar docker-compose.yml (stack completa via include)
+        run: docker compose config --quiet
+
+      - name: Validar cada serviço isoladamente (docker compose -f servico/servico.yml)
+        run: |
+          set -e
+          for f in jellyfin/jellyfin.yml komga/komga.yml navidrome/navidrome.yml \
+                   fileserver/samba.yml portainer/portainer.yml qbittorrent/qbittorrent.yml; do
+            echo "== $f =="
+            docker compose -f "$f" config --quiet
+          done

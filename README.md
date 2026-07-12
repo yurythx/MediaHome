@@ -466,41 +466,8 @@ sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw reload
 ```
 
-### Exposição Segura (Reverse Proxy)
-Para expor os serviços na internet, use um reverse proxy com SSL:
-```nginx
-# Exemplo de configuração Nginx
-server {
-    listen 443 ssl;
-    server_name jellyfin.seudominio.com;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8096;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support para Jellyfin
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
-### Exposição Segura (Cloudflare Tunnel)
-
-Caso utilize o **Cloudflare Tunnel** (Zero Trust) em vez de um Reverse Proxy tradicional para expor a stack na internet, configure o novo serviço de torrent seguindo estes passos no dashboard do Cloudflare:
-
-1. Acesse o **Cloudflare Zero Trust Dashboard** → **Access** → **Tunnels**.
-2. Selecione o túnel ativo do seu servidor e clique em **Configure**.
-3. Na aba **Public Hostname**, adicione um novo hostname:
-   - **Subdomain**: `torrent` (ou `qbittorrent`)
-   - **Domain**: `seudominio.com`
-   - **Service Type**: `HTTP`
-   - **URL**: `localhost:8080` (ou o IP local do servidor, ex: `192.168.0.121:8080`)
-4. Salve as alterações. O qBittorrent estará disponível externamente com HTTPS de forma segura em `https://torrent.seudominio.com` sem a necessidade de expor portas diretamente no seu roteador.
+### Exposição Segura (Reverse Proxy / Cloudflare Tunnel)
+Para expor os serviços na internet, use sempre um reverse proxy com SSL ou um Cloudflare Tunnel — nunca exponha as portas diretamente no roteador. Exemplos completos de configuração Nginx e Cloudflare Tunnel estão em [DEPLOY_UBUNTU_AAPANEL.md](DEPLOY_UBUNTU_AAPANEL.md#5-configurar-aapanel-proxy-reverso--ssl).
 
 ## 📊 Monitoramento e Métricas
 
@@ -552,148 +519,7 @@ Test-NetConnection -ComputerName localhost -Port 8080  # qBittorrent
 
 ## 🚀 Implantação em Produção (Ubuntu + aaPanel)
 
-### 1. Preparar Servidor Ubuntu
-```bash
-# Atualizar sistema
-sudo apt update && sudo apt upgrade -y
-
-# Instalar Docker
-sudo apt install -y docker.io docker-compose-plugin git curl
-sudo usermod -aG docker $USER && newgrp docker
-
-# Verificar instalação
-docker --version
-docker compose version
-```
-
-### 2. Configurar Estrutura de Diretórios
-```bash
-# Criar diretórios
-sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
-sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup
-
-# Ajustar permissões
-sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
-sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
-```
-
-### 3. Configurar Montagem de Discos
-#### Para Discos Locais (ext4)
-```bash
-# Identificar discos
-lsblk -f
-
-# Obter UUIDs
-sudo blkid
-
-# Configurar montagem automática
-sudo nano /etc/fstab
-
-# Adicionar linhas (substitua pelos UUIDs reais)
-UUID=seu-uuid-dados  /mnt/dados   ext4  defaults,noatime  0  2
-UUID=seu-uuid-dados2 /mnt/dados2  ext4  defaults,noatime  0  2
-
-# Aplicar configuração
-sudo systemctl daemon-reload
-sudo mount -a
-```
-
-#### Para Compartilhamentos SMB Remotos
-```bash
-# Instalar cliente CIFS
-sudo apt install -y cifs-utils
-
-# Criar arquivo de credenciais
-sudo bash -c 'cat >/etc/samba-cred <<EOF
-username=seu_usuario
-password=sua_senha
-EOF'
-sudo chmod 600 /etc/samba-cred
-
-# Configurar montagem automática
-sudo nano /etc/fstab
-
-# Adicionar linhas
-//IP_SERVIDOR/Dados  /mnt/dados  cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-//IP_SERVIDOR/Dados2 /mnt/dados2 cifs  credentials=/etc/samba-cred,uid=1000,gid=1000,vers=3.0,iocharset=utf8,file_mode=0644,dir_mode=0755  0  0
-
-# Aplicar configuração
-sudo systemctl daemon-reload
-sudo mount -a
-```
-
-### 4. Clonar e Configurar Projeto
-```bash
-# Clonar projeto
-git clone <URL_DO_REPOSITORIO>
-cd MediaHome
-
-# Ajustar configurações se necessário
-# Editar docker-compose.yml para caminhos específicos
-```
-
-### 5. Configurar Firewall
-```bash
-# Configurar UFW
-sudo ufw allow 8096/tcp  # Jellyfin
-sudo ufw allow 8082/tcp  # Komga
-sudo ufw allow 4533/tcp  # Navidrome
-sudo ufw allow 9020/tcp  # Portainer
-sudo ufw allow 445/tcp   # Samba
-sudo ufw allow 8080/tcp  # qBittorrent Web UI
-sudo ufw allow 6881/tcp  # Torrent TCP
-sudo ufw allow 6881/udp  # Torrent UDP
-sudo ufw reload
-```
-
-### 6. Iniciar Stack
-```bash
-# Iniciar todos os serviços
-docker compose up -d
-
-# Verificar status
-docker compose ps
-
-# Verificar logs
-docker compose logs --tail=50
-```
-
-### 7. Configurar aaPanel (Reverse Proxy)
-1. **Instalar aaPanel**:
-```bash
-wget -O install.sh http://www.aapanel.com/script/install-ubuntu_6.0_en.sh
-sudo bash install.sh
-```
-
-2. **Configurar Nginx via aaPanel**:
-   - Acesse o painel aaPanel
-   - Instale Nginx via App Store
-   - Crie sites para cada serviço:
-     - `jellyfin.seudominio.com` → `http://127.0.0.1:8096`
-     - `komga.seudominio.com` → `http://127.0.0.1:8082`
-     - `music.seudominio.com` → `http://127.0.0.1:4533`
-     - `portainer.seudominio.com` → `http://127.0.0.1:9020`
-     - `torrent.seudominio.com` → `http://127.0.0.1:8080`
-
-3. **Configurar SSL**:
-   - Para cada site, configure SSL via Let's Encrypt
-   - Habilite redirecionamento HTTPS
-
-### 8. Teste e Validação
-```bash
-# Testar conectividade local
-curl -I http://localhost:8096  # Jellyfin
-curl -I http://localhost:8082  # Komga
-curl -I http://localhost:4533  # Navidrome
-curl -I http://localhost:9020  # Portainer
-curl -I http://localhost:8080  # qBittorrent
-
-# Verificar Samba
-smbclient -L localhost -U seu_usuario
-
-# Verificar backups
-ls -la /mnt/backup/
-```
+Para colocar a stack em produção num servidor Ubuntu com aaPanel — preparo do host, montagem de discos, firewall, domínios/proxy reverso, SSL e a alternativa via Cloudflare Tunnel — veja o guia dedicado: **[DEPLOY_UBUNTU_AAPANEL.md](DEPLOY_UBUNTU_AAPANEL.md)**.
 
 ## 📚 Recursos Adicionais
 
@@ -710,7 +536,10 @@ MediaHome/
 ├── docker-compose.yml          # Orquestração principal
 ├── .env.example                 # Template de variáveis (copie para .env)
 ├── .gitignore                   # Garante que .env não seja versionado
+├── .github/workflows/
+│   └── validate-compose.yml     # CI: valida a sintaxe dos .yml a cada push/PR
 ├── README.md                   # Esta documentação
+├── DEPLOY_UBUNTU_AAPANEL.md    # Guia específico de produção (Ubuntu + aaPanel)
 ├── jellyfin/
 │   └── jellyfin.yml           # Serviço Jellyfin independente
 ├── komga/
