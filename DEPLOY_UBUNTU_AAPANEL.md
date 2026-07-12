@@ -152,28 +152,28 @@ nano .env   # defina SAMBA_PASSWORD e ajuste HOST_IP/caminhos para o seu servido
 ### 2. Iniciar Serviços de Mídia
 ```bash
 # Iniciar Jellyfin
-docker-compose -f jellyfin/jellyfin.yml up -d
+docker compose -f jellyfin/jellyfin.yml up -d
 
 # Aguardar inicialização
 sleep 30
 
 # Iniciar Komga
-docker-compose -f komga/komga.yml up -d
+docker compose -f komga/komga.yml up -d
 
 # Iniciar Navidrome
-docker-compose -f navidrome/navidrome.yml up -d
+docker compose -f navidrome/navidrome.yml up -d
 ```
 
 ### 3. Iniciar Serviços de Infraestrutura e Torrent
 ```bash
 # Iniciar Samba
-docker-compose -f fileserver/samba.yml up -d
+docker compose -f fileserver/samba.yml up -d
 
 # Iniciar Portainer
-docker-compose -f portainer/portainer.yml up -d
+docker compose -f portainer/portainer.yml up -d
 
 # Iniciar qBittorrent
-docker-compose -f qbittorrent/qbittorrent.yml up -d
+docker compose -f qbittorrent/qbittorrent.yml up -d
 ```
 
 ## Verificação
@@ -181,7 +181,7 @@ docker-compose -f qbittorrent/qbittorrent.yml up -d
 ### 1. Status dos Containers
 ```bash
 docker ps
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### 2. Testes de Conectividade
@@ -273,17 +273,17 @@ O Samba usa as credenciais definidas em `SAMBA_USER`/`SAMBA_PASSWORD` no `.env` 
 ### Comandos Úteis
 ```bash
 # Ver logs
-docker-compose logs -f [serviço]
+docker compose logs -f [serviço]
 
 # Reiniciar serviços
-docker-compose restart [serviço]
+docker compose restart [serviço]
 
 # Verificar uso de espaço
 df -h /mnt/dados /mnt/dados2
 
 # Atualizar imagens
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Backup de Configurações (Manual)
