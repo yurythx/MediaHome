@@ -31,7 +31,8 @@ jobs:
         run: |
           set -e
           for f in jellyfin/jellyfin.yml komga/komga.yml navidrome/navidrome.yml \
-                   fileserver/samba.yml portainer/portainer.yml qbittorrent/qbittorrent.yml; do
+                   fileserver/samba.yml portainer/portainer.yml qbittorrent/qbittorrent.yml \
+                   peertube/peertube.yml; do
             echo "== $f =="
             # --env-file explícito: sem isso o Compose procura .env dentro da
             # pasta do serviço (ex: fileserver/.env) em vez da raiz do projeto

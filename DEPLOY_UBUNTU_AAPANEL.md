@@ -31,6 +31,7 @@ sudo mkdir -p /mnt/dados/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/dados2/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/externo /mnt/backup
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
+sudo mkdir -p /mnt/config/peertube/{data,config,postgres,redis}
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 ```
@@ -85,6 +86,7 @@ sudo ufw allow 9020/tcp    # Portainer
 sudo ufw allow 8080/tcp    # qBittorrent Web UI
 sudo ufw allow 6881/tcp    # Torrent TCP
 sudo ufw allow 6881/udp    # Torrent UDP
+sudo ufw allow 9000/tcp    # PeerTube
 sudo ufw --force enable
 ```
 
@@ -97,11 +99,14 @@ cd MediaHome
 
 # Configurar variáveis de ambiente (obrigatório)
 cp .env.example .env
-nano .env   # defina SAMBA_PASSWORD e ajuste HOST_IP/caminhos para o seu servidor
+nano .env   # defina SAMBA_PASSWORD, PEERTUBE_HOSTNAME, PEERTUBE_ADMIN_EMAIL,
+            # PEERTUBE_SECRET e PEERTUBE_DB_PASSWORD, e ajuste HOST_IP/caminhos
 
 docker compose up -d
 docker compose ps
 ```
+
+> ⚠️ **PeerTube**: `PEERTUBE_HOSTNAME` fica definitivo assim que você roda o `up` acima. Decida agora o domínio final (ex: `clips.seudominio.com`, o mesmo que vai configurar no passo 5) antes de subir a stack pela primeira vez — trocar depois exige apagar `/mnt/config/peertube/postgres` e recomeçar do zero.
 
 Veja o [README.md](README.md#primeiro-acesso) para o primeiro acesso/configuração inicial de cada serviço (Jellyfin, Komga, Navidrome, Samba, qBittorrent, Portainer) — os passos são os mesmos, só que aqui você acessa pelo domínio configurado no passo 5 em vez de `localhost`.
 
@@ -120,6 +125,7 @@ No painel aaPanel, instale o Nginx via App Store e crie um site por serviço, ap
 - `navidrome.seudominio.com` → `http://127.0.0.1:4533`
 - `portainer.seudominio.com` → `http://127.0.0.1:9020`
 - `torrent.seudominio.com` → `http://127.0.0.1:8080`
+- `PEERTUBE_HOSTNAME` (ex: `clips.seudominio.com`, o valor definido no `.env`) → `http://127.0.0.1:9000`
 
 Exemplo de configuração Nginx para o Jellyfin (streaming precisa de `proxy_buffering off` e WebSocket habilitado):
 ```nginx
@@ -139,6 +145,8 @@ location / {
     proxy_set_header Connection "upgrade";
 }
 ```
+
+> O PeerTube usa o mesmo modelo de proxy do Jellyfin acima (`proxy_buffering off`, `client_max_body_size 0`, WebSocket habilitado) — uploads de vídeo grandes travam com o `client_max_body_size` padrão do Nginx se você não zerar esse limite.
 
 ### Configurar SSL
 Para cada site criado, configure certificado SSL via Let's Encrypt (aba SSL do site no aaPanel) e habilite redirecionamento HTTPS.
@@ -162,6 +170,7 @@ curl -I http://localhost:8082  # Komga
 curl -I http://localhost:4533  # Navidrome
 curl -I http://localhost:9020  # Portainer
 curl -I http://localhost:8080  # qBittorrent
+curl -I http://localhost:9000  # PeerTube
 smbclient -L localhost -U seu_usuario
 
 # Via domínio (após configurar aaPanel/SSL)
@@ -169,8 +178,8 @@ curl -I https://jellyfin.seudominio.com
 ```
 
 ## Hardware Recomendado
-- **CPU**: mínimo 4 cores (transcodificação de vídeo no Jellyfin consome bastante)
-- **RAM**: mínimo 8GB
+- **CPU**: mínimo 4 cores (transcodificação de vídeo no Jellyfin **e** no PeerTube consome bastante — cada upload no PeerTube dispara transcodificação em múltiplas resoluções)
+- **RAM**: mínimo 8GB (o PeerTube sozinho já soma 3 containers: app + Postgres + Redis)
 - **Armazenamento**: SSD para `/mnt/config`, HDD para mídia
 - **Rede**: Gigabit Ethernet recomendado
 
@@ -180,6 +189,7 @@ curl -I https://jellyfin.seudominio.com
 | Proxy reverso não funciona | Configuração do site no aaPanel, certificado SSL válido |
 | Samba não conecta de fora da rede local | Firewall UFW, se a porta 445 está exposta (normalmente não deveria estar, prefira VPN) |
 | Discos não montam após reiniciar | `sudo mount -a` e conferir UUIDs em `/etc/fstab` com `sudo blkid` |
+| PeerTube não abre / erro de domínio | `PEERTUBE_HOSTNAME` no `.env` precisa ser idêntico ao domínio configurado no site do aaPanel; se você errou o valor no primeiro `up`, é preciso apagar `/mnt/config/peertube/postgres` e recomeçar |
 
 Para os demais problemas (containers, permissões, backup, cada serviço individualmente), veja a seção "🛠️ Solução de Problemas" do [README.md](README.md#solução-de-problemas).
 

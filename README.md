@@ -11,6 +11,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 - **📁 Samba**: Compartilhamento de arquivos via SMB/CIFS
 - **🌐 Portainer**: Interface de gerenciamento Docker
 - **📥 qBittorrent**: Cliente de torrent integrado para downloads diretos nos HDs
+- **📹 PeerTube**: Plataforma de vídeos estilo YouTube, para hospedar seus próprios clipes
 
 ### Arquitetura
 - **Rede**: Todos os serviços compartilham a rede Docker `mediahome` (bridge), declarada em cada `.yml` para permitir subir cada serviço isoladamente
@@ -25,7 +26,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 ### Pré-requisitos
 - ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
 - ✅ Docker Compose v2+
-- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
@@ -36,6 +37,10 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\komga"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\navidrome"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\portainer"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\qbittorrent"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\data"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\config"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\postgres"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\redis"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados2"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\externo"
@@ -45,6 +50,7 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
 ```bash
 # Linux/Ubuntu
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
+sudo mkdir -p /mnt/config/peertube/{data,config,postgres,redis}
 sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 ```
@@ -55,7 +61,10 @@ sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/exte
 3. **Configure as variáveis de ambiente**:
 ```bash
 cp .env.example .env
-# edite o .env: defina SAMBA_PASSWORD (obrigatório) e ajuste HOST_IP/paths conforme seu servidor
+# edite o .env: defina SAMBA_PASSWORD, PEERTUBE_HOSTNAME, PEERTUBE_ADMIN_EMAIL,
+# PEERTUBE_SECRET e PEERTUBE_DB_PASSWORD (todos obrigatórios) e ajuste HOST_IP/paths
+# conforme seu servidor. PEERTUBE_HOSTNAME é definitivo após o primeiro "up" - veja
+# a seção do PeerTube mais abaixo antes de decidir o valor.
 ```
 4. **Execute a stack**:
 ```powershell
@@ -81,6 +90,7 @@ docker compose logs jellyfin --tail 50
 | **Portainer** | http://localhost:9020 | 9020 | Gerenciamento Docker |
 | **Samba** | `\\localhost\Dados` | 445 | Compartilhamento de arquivos |
 | **qBittorrent** | http://localhost:8080 | 8080 | Interface Web do Cliente Torrent |
+| **PeerTube** | http://localhost:9000 | 9000 | Plataforma de vídeos (seus clipes) |
 
 ### Primeiro Acesso
 
@@ -119,6 +129,21 @@ docker compose logs jellyfin --tail 50
 
 > ⚠️ **IMPORTANTE**: Use uma senha forte em `SAMBA_PASSWORD` e nunca commite o arquivo `.env`.
 
+#### 📹 PeerTube
+1. Acesse `http://SEU_IP:9000` (localmente) ou `https://SEU_DOMÍNIO` (via aaPanel, veja [DEPLOY_UBUNTU_AAPANEL.md](DEPLOY_UBUNTU_AAPANEL.md))
+2. O usuário admin é `root` — a senha inicial é gerada automaticamente e aparece no log do container:
+   ```bash
+   docker compose logs peertube | grep -A1 "Username: root"
+   ```
+   Ou redefina com:
+   ```bash
+   docker compose exec -u peertube peertube npm run reset-password -- -u root
+   ```
+3. Troque a senha em **Minha conta → Configurações**.
+4. Faça upload dos clipes em **Publicar → Enviar um vídeo**.
+
+> ⚠️ **IMPORTANTE**: `PEERTUBE_HOSTNAME` (no `.env`) é definitivo após o primeiro `docker compose up` — o PeerTube não suporta trocar de domínio depois sem apagar o banco (`/mnt/config/peertube/postgres`) e recomeçar do zero. Decida o domínio final antes de subir este serviço pela primeira vez.
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos
@@ -151,6 +176,7 @@ docker compose --env-file .env -f navidrome/navidrome.yml up -d
 docker compose --env-file .env -f fileserver/samba.yml up -d
 docker compose --env-file .env -f portainer/portainer.yml up -d
 docker compose --env-file .env -f qbittorrent/qbittorrent.yml up -d
+docker compose --env-file .env -f peertube/peertube.yml up -d
 
 # Parar serviço específico
 docker compose --env-file .env -f jellyfin/jellyfin.yml down
@@ -166,7 +192,7 @@ Os dados são persistidos em volumes locais Docker:
 ### Bind Mounts (Dados de Mídia)
 - `/mnt/dados` → Disco principal de mídia
 - `/mnt/dados2` → Disco secundário de mídia
-- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent`)
+- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent` e PeerTube em `/mnt/config/peertube/{data,config,postgres,redis}`)
 - `/mnt/backup` → Local para salvar os backups manuais
 
 ## 💾 Sistema de Backup Manual
@@ -443,6 +469,7 @@ docker compose up -d --force-recreate jellyfin
 - ✅ Configure HTTPS para acesso externo
 - ✅ Portainer tem acesso ao socket do Docker (equivale a root no host): não exponha a porta 9020 diretamente na internet sem VPN, IP allowlist ou autenticação adicional (ex: Authelia)
 - ⚠️ O qBittorrent tem acesso de **escrita** à raiz de `/mnt/dados` e `/mnt/dados2` (diferente dos demais serviços, que são somente leitura) — avalie restringir a uma subpasta dedicada de downloads
+- ⚠️ O PeerTube federa via ActivityPub e, por padrão, vídeos marcados como "Público" ficam visíveis/indexáveis por outras instâncias PeerTube na internet, mesmo sem divulgar o link. Se os clipes são só para uso pessoal/família, marque-os como "Não listado" ou "Privado" ao publicar, e desative signup público em **Administração → Configurações → Cadastro**
 
 ### Configuração de Firewall
 ```powershell
@@ -464,6 +491,7 @@ sudo ufw allow 445/tcp   # Samba
 sudo ufw allow 8080/tcp  # qBittorrent Web UI
 sudo ufw allow 6881/tcp  # Torrent TCP
 sudo ufw allow 6881/udp  # Torrent UDP
+sudo ufw allow 9000/tcp  # PeerTube
 sudo ufw reload
 ```
 
@@ -501,7 +529,7 @@ docker compose logs --timestamps --tail=100
 ```
 
 ### Health Checks
-Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome e qBittorrent têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis.
+Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome, qBittorrent e PeerTube têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis. Postgres e Redis do PeerTube também não têm healthcheck próprio aqui — se falharem, o container `peertube` vai indicar erro de conexão nos logs.
 
 ```powershell
 # Verificar saúde de todos os containers
@@ -516,6 +544,7 @@ Test-NetConnection -ComputerName localhost -Port 8082  # Komga
 Test-NetConnection -ComputerName localhost -Port 4533  # Navidrome
 Test-NetConnection -ComputerName localhost -Port 9020  # Portainer
 Test-NetConnection -ComputerName localhost -Port 8080  # qBittorrent
+Test-NetConnection -ComputerName localhost -Port 9000  # PeerTube
 ```
 
 ## 🚀 Implantação em Produção (Ubuntu + aaPanel)
@@ -530,6 +559,7 @@ Para colocar a stack em produção num servidor Ubuntu com aaPanel — preparo d
 - [Navidrome Documentation](https://www.navidrome.org/docs/)
 - [Samba Documentation](https://www.samba.org/samba/docs/)
 - [Portainer Documentation](https://docs.portainer.io/)
+- [PeerTube Documentation](https://docs.joinpeertube.org/)
 
 ### Estrutura do Projeto
 ```
@@ -553,6 +583,8 @@ MediaHome/
 │   └── portainer.yml          # Interface de gerenciamento
 ├── qbittorrent/
 │   └── qbittorrent.yml        # Serviço qBittorrent independente
+├── peertube/
+│   └── peertube.yml           # PeerTube + Postgres + Redis (plataforma de vídeos)
 └── backup/
     └── backup.yml             # Desativado (mantido apenas para referência)
 ```

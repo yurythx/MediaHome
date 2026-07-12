@@ -1,0 +1,81 @@
+# PeerTube - Plataforma de vídeos estilo YouTube (para os clipes)
+# Para iniciar apenas este serviço: docker compose --env-file .env -f peertube/peertube.yml up -d
+# Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# ATENÇÃO: PEERTUBE_HOSTNAME é DEFINITIVO após o primeiro "up" (o PeerTube não
+# suporta trocar de domínio depois - trocar exige apagar o banco e recomeçar
+# do zero). Defina o domínio final ANTES de subir este serviço pela primeira
+# vez. O PeerTube espera rodar atrás de um reverse proxy com HTTPS (aaPanel,
+# igual aos outros serviços) - por isso não expomos os containers de
+# nginx/certbot/postfix do template oficial, só a porta interna do app.
+#
+# Sem suporte a e-mail (SMTP) configurado por padrão: reset de senha do admin
+# via linha de comando, veja README.md.
+
+services:
+  peertube-postgres:
+    image: postgres:17.10-alpine
+    container_name: peertube-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${PEERTUBE_DB_USERNAME:-peertube}
+      - POSTGRES_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}
+      - POSTGRES_DB=peertube
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/peertube/postgres:/var/lib/postgresql/data
+    networks:
+      - mediahome
+
+  peertube-redis:
+    image: redis:8.8.0-alpine
+    container_name: peertube-redis
+    restart: unless-stopped
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/peertube/redis:/data
+    networks:
+      - mediahome
+
+  peertube:
+    image: chocobozzz/peertube:v8.2.2
+    container_name: peertube
+    restart: unless-stopped
+    depends_on:
+      - peertube-postgres
+      - peertube-redis
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+      - PEERTUBE_DB_USERNAME=${PEERTUBE_DB_USERNAME:-peertube}
+      - PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}
+      - PEERTUBE_DB_SSL=false
+      - PEERTUBE_DB_HOSTNAME=peertube-postgres
+      - PEERTUBE_REDIS_HOSTNAME=peertube-redis
+      # Domínio definitivo - veja o aviso no topo do arquivo
+      - PEERTUBE_WEBSERVER_HOSTNAME=${PEERTUBE_HOSTNAME:?defina PEERTUBE_HOSTNAME (o domínio, sem https://) no .env}
+      # Sem PEERTUBE_WEBSERVER_PORT/HTTPS: usa o padrão 443+https, correto
+      # para rodar atrás do proxy reverso do aaPanel (mesmo padrão dos outros serviços)
+      - PEERTUBE_ADMIN_EMAIL=${PEERTUBE_ADMIN_EMAIL:?defina PEERTUBE_ADMIN_EMAIL no .env}
+      # Gere com: openssl rand -hex 32
+      - PEERTUBE_SECRET=${PEERTUBE_SECRET:?defina PEERTUBE_SECRET no .env (gere com: openssl rand -hex 32)}
+      # IPs confiados para ler X-Forwarded-For (o proxy do aaPanel roda no host,
+      # fora da rede Docker - confira com "docker network inspect mediahome"
+      # se os logs de IP do PeerTube parecerem errados e ajuste aqui)
+      - PEERTUBE_TRUST_PROXY=["127.0.0.1", "loopback", "172.16.0.0/12"]
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/peertube/data:/data
+      - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config
+    ports:
+      - "${PEERTUBE_PORT:-9000}:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge
