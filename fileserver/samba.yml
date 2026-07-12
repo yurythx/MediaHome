@@ -1,6 +1,16 @@
 # Samba - Servidor de arquivos
-# Para iniciar apenas este serviço: docker-compose -f fileserver/samba.yml up -d
+# Para iniciar apenas este serviço: docker compose -f fileserver/samba.yml up -d
 # Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# SAMBA_USER e SAMBA_PASSWORD são OBRIGATÓRIOS no .env - não há senha padrão.
+# Nota: dperson/samba não publica tags de versão (só "latest") há anos; se isso
+# for um problema, considere migrar para servercontainers/samba no futuro.
+#
+# Não precisa de healthcheck aqui: a imagem já traz um HEALTHCHECK embutido
+# (smbclient -L localhost) — visível em "docker ps". Pode falhar se o
+# compartilhamento anônimo estiver desabilitado; isso é comportamento da
+# imagem, não deste arquivo.
 
 services:
   samba:
@@ -8,15 +18,20 @@ services:
     container_name: samba
     restart: unless-stopped
     environment:
-      - TZ=America/Sao_Paulo
-      - USER=suporte;suporte123
+      - TZ=${TZ:-America/Sao_Paulo}
+      - USER=${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}
     volumes:
       # Compartilhamentos
-      - /mnt/dados:/dados
-      - /mnt/dados2:/dados2
-      - /mnt/config:/config
+      - ${MEDIA_PATH_1:-/mnt/dados}:/dados
+      - ${MEDIA_PATH_2:-/mnt/dados2}:/dados2
+      - ${CONFIG_PATH:-/mnt/config}:/config
     ports:
-      - "445:445"
-    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "suporte;suporte123" -p'
+      - "${SAMBA_PORT:-445}:445"
+    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}" -p'
     networks:
       - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge

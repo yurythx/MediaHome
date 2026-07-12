@@ -1,0 +1,44 @@
+# qBittorrent - Cliente de Torrent
+# Para iniciar apenas este serviço: docker compose -f qbittorrent/qbittorrent.yml up -d
+# Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# ATENÇÃO: ao contrário dos outros serviços, este container tem acesso de
+# ESCRITA à raiz de MEDIA_PATH_1/MEDIA_PATH_2/MEDIA_PATH_EXT. Se possível,
+# restrinja a uma subpasta "downloads/" e mova os arquivos com Sonarr/Radarr.
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:5.2.3
+    container_name: qbittorrent
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-America/Sao_Paulo}
+      - WEBUI_PORT=${QBITTORRENT_PORT:-8080}
+    volumes:
+      # Pasta para salvar as configurações do qBittorrent no seu SSD
+      - ${CONFIG_PATH:-/mnt/config}/qbittorrent:/config
+      # Mapeamento dos HDs para salvar os downloads direto neles
+      - ${MEDIA_PATH_1:-/mnt/dados}:/downloads/dados
+      - ${MEDIA_PATH_2:-/mnt/dados2}:/downloads/dados2
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/downloads/externo
+    ports:
+      - "${QBITTORRENT_PORT:-8080}:${QBITTORRENT_PORT:-8080}"      # Porta da Interface Web
+      - "${QBITTORRENT_PORT_TORRENT:-6881}:6881"      # Porta de conexão Torrent (TCP)
+      - "${QBITTORRENT_PORT_TORRENT:-6881}:6881/udp"  # Porta de conexão Torrent (UDP)
+    healthcheck:
+      # curl está presente na baseimage-alpine da LinuxServer.io
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:${QBITTORRENT_PORT:-8080}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge

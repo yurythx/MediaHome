@@ -1,23 +1,32 @@
 # Jellyfin - Servidor de mídia
-# Para iniciar apenas este serviço: docker-compose -f jellyfin/jellyfin.yml up -d
+# Para iniciar apenas este serviço: docker compose -f jellyfin/jellyfin.yml up -d
 # Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# Não precisa de healthcheck aqui: a imagem oficial já traz um HEALTHCHECK
+# embutido (curl em http://localhost:8096/health) — visível em "docker ps".
 
 services:
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: jellyfin/jellyfin:10.11.5
     container_name: jellyfin
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/Sao_Paulo
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-America/Sao_Paulo}
     volumes:
       # Configurações no SSD
-      - /mnt/config/jellyfin:/config
+      - ${CONFIG_PATH:-/mnt/config}/jellyfin:/config
       # Pontos de montagem adicionais para facilitar navegação (raiz das mídias)
-      - /mnt/dados:/media/dados:ro
-      - /mnt/dados2:/media/dados2:ro
+      - ${MEDIA_PATH_1:-/mnt/dados}:/media/dados:ro
+      - ${MEDIA_PATH_2:-/mnt/dados2}:/media/dados2:ro
     ports:
-      - "8096:8096"
+      - "${JELLYFIN_PORT:-8096}:8096"
     networks:
       - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge

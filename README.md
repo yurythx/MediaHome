@@ -10,21 +10,22 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 - **🎵 Navidrome**: Servidor de streaming de música
 - **📁 Samba**: Compartilhamento de arquivos via SMB/CIFS
 - **🌐 Portainer**: Interface de gerenciamento Docker
-- **💾 Backup**: Sistema automatizado de backup das configurações
+- **📥 qBittorrent**: Cliente de torrent integrado para downloads diretos nos HDs
 
 ### Arquitetura
-- **Rede**: Todos os serviços compartilham a rede local `mediahome_default`
-- **Volumes**: Dados persistidos em volumes locais Docker
+- **Rede**: Todos os serviços compartilham a rede Docker `mediahome` (bridge), declarada em cada `.yml` para permitir subir cada serviço isoladamente
+- **Volumes**: Dados persistidos via bind mount para o host (sem volumes nomeados órfãos)
 - **Armazenamento**: Bind mounts para `/mnt/dados` e `/mnt/dados2`
 - **Configurações**: Centralizadas em `/mnt/config`
-- **Backups**: Automatizados diariamente em `/mnt/backup`
+- **Backups**: Realizados de forma manual/agendada para economizar espaço
+- **Configuração**: Todas as portas, caminhos e credenciais vêm do arquivo `.env` (veja `.env.example`) — nada de credencial fixa no código
 
 ## 🚀 Início Rápido
 
 ### Pré-requisitos
 - ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
 - ✅ Docker Compose v2+
-- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
@@ -34,22 +35,29 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\jellyfin"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\komga"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\navidrome"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\portainer"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\qbittorrent"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados2"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\externo"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
 ```
 
 ```bash
 # Linux/Ubuntu
-sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer}
-sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup
-sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
+sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
+sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 ```
 
 ### Instalação e Execução
 1. **Clone ou baixe o projeto**
 2. **Configure a estrutura de diretórios** (veja acima)
-3. **Execute a stack**:
+3. **Configure as variáveis de ambiente**:
+```bash
+cp .env.example .env
+# edite o .env: defina SAMBA_PASSWORD (obrigatório) e ajuste HOST_IP/paths conforme seu servidor
+```
+4. **Execute a stack**:
 ```powershell
 docker compose up -d
 ```
@@ -72,6 +80,7 @@ docker compose logs jellyfin --tail 50
 | **Navidrome** | http://localhost:4533 | 4533 | Streaming de música |
 | **Portainer** | http://localhost:9020 | 9020 | Gerenciamento Docker |
 | **Samba** | `\\localhost\Dados` | 445 | Compartilhamento de arquivos |
+| **qBittorrent** | http://localhost:8080 | 8080 | Interface Web do Cliente Torrent |
 
 ### Primeiro Acesso
 
@@ -102,13 +111,13 @@ docker compose logs jellyfin --tail 50
 
 #### 📁 Samba
 - **Windows**: Acesse `\\localhost\Dados` e `\\localhost\Dados2`
-- **Credenciais padrão**: `suporte` / `suporte123`
+- **Credenciais**: definidas em `SAMBA_USER`/`SAMBA_PASSWORD` no seu `.env` (não há mais senha padrão fixa no código — o container recusa subir se `SAMBA_PASSWORD` não estiver definida)
 - **Compartilhamentos**:
   - `Dados` → `/mnt/dados`
   - `Dados2` → `/mnt/dados2`
   - `Config` → `/mnt/config`
 
-> ⚠️ **IMPORTANTE**: Altere as credenciais padrão do Samba em produção!
+> ⚠️ **IMPORTANTE**: Use uma senha forte em `SAMBA_PASSWORD` e nunca commite o arquivo `.env`.
 
 ## 🔧 Gerenciamento da Stack
 
@@ -127,6 +136,8 @@ docker compose ps
 docker compose logs [serviço] --tail 100
 
 # Atualizar imagens e reiniciar
+# (as versões estão fixadas em cada .yml — edite a tag antes de dar pull
+#  se quiser subir de versão; "pull" sozinho não traz release nova)
 docker compose pull && docker compose up -d
 ```
 
@@ -138,6 +149,7 @@ docker compose -f komga/komga.yml up -d
 docker compose -f navidrome/navidrome.yml up -d
 docker compose -f fileserver/samba.yml up -d
 docker compose -f portainer/portainer.yml up -d
+docker compose -f qbittorrent/qbittorrent.yml up -d
 
 # Parar serviço específico
 docker compose -f jellyfin/jellyfin.yml down
@@ -149,76 +161,70 @@ Os dados são persistidos em volumes locais Docker:
 - `mediahome_komga_config` - Configurações do Komga
 - `mediahome_navidrome_config` - Configurações do Navidrome
 - `mediahome_portainer_data` - Dados do Portainer
-- `mediahome_backup_data` - Dados do sistema de backup
 
 ### Bind Mounts (Dados de Mídia)
 - `/mnt/dados` → Disco principal de mídia
 - `/mnt/dados2` → Disco secundário de mídia
-- `/mnt/config` → Configurações dos serviços
-- `/mnt/backup` → Backups automatizados
+- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent`)
+- `/mnt/backup` → Local para salvar os backups manuais
 
-## 💾 Sistema de Backup Automatizado
+## 💾 Sistema de Backup Manual
 
-### Características do Backup
-- **Frequência**: A cada 24 horas (configurável)
-- **Retenção**: 30 dias (configurável)
-- **Formato**: Arquivos `.tar.gz` compactados
-- **Localização**: `/mnt/backup/mediahome_config_YYYYMMDD_HHMMSS.tar.gz`
-- **Conteúdo**: Todas as configurações dos serviços
-- **Logs**: Auditoria completa em `/mnt/backup/backup.log`
-- **Health Check**: Monitoramento automático
+Como os backups automáticos constantes ocupavam muito espaço em disco, o contêiner de backup automático foi removido. Os backups agora podem ser executados manualmente no host quando você preferir.
 
-### Comandos de Backup
+### Criar Backup Manual (Linux/Ubuntu)
+```bash
+# Criar backup compactado das configurações
+sudo tar -czf /mnt/backup/mediahome_config_$(date +%Y%m%d_%H%M%S).tar.gz -C /mnt/config .
+
+# Listar backups criados
+ls -lh /mnt/backup/*.tar.gz
+```
+
+### Criar Backup Manual (Windows)
 ```powershell
-# Verificar status do backup
-docker compose logs backup-configs --tail 50
-
-# Ver backups criados
-ls /mnt/backup/*.tar.gz
-
-# Ver log de auditoria
-cat /mnt/backup/backup.log
-
-# Forçar backup manual
-docker exec backup-configs /backup.sh
+# Criar backup compactado das configurações no PowerShell
+tar -czf C:\MediaHome\backup\mediahome_config_$(Get-Date -Format "yyyyMMdd_HHmmss").tar.gz -C C:\MediaHome\config .
 ```
-
-### Configurar Frequência do Backup
-Edite o arquivo `docker-compose.yml` na seção do serviço `backup-configs`:
-```yaml
-environment:
-  - BACKUP_INTERVAL=86400    # 24 horas (em segundos)
-  - RETENTION_DAYS=30        # Retenção em dias
-```
-
-**Exemplos de intervalos**:
-- 6 horas: `21600`
-- 12 horas: `43200`
-- 24 horas: `86400` (padrão)
-- 48 horas: `172800`
 
 ### Restaurar Backup
-```powershell
-# Parar todos os serviços
+```bash
+# 1. Parar todos os serviços
 docker compose down
 
-# Listar backups disponíveis
-ls -lt /mnt/backup/mediahome_config_*.tar.gz
+# 2. Restaurar backup (Linux/Ubuntu)
+sudo tar -xzf /mnt/backup/nome_do_arquivo.tar.gz -C /mnt/config/
+# Ou Windows (PowerShell)
+tar -xzf C:\MediaHome\backup\nome_do_arquivo.tar.gz -C C:\MediaHome\config\
 
-# Restaurar backup mais recente (Linux)
-cd /mnt/backup
-LATEST_BACKUP=$(ls -t mediahome_config_*.tar.gz | head -1)
-tar -xzf $LATEST_BACKUP -C /mnt/config/
-
-# Restaurar backup específico (Windows)
-tar -xzf mediahome_config_20241016_140000.tar.gz -C /mnt/config/
-
-# Ajustar permissões (Linux)
+# 3. Ajustar permissões (apenas Linux)
 sudo chown -R 1000:1000 /mnt/config
 
-# Reiniciar serviços
+# 4. Reiniciar serviços
 docker compose up -d
 ```
+
+## 📥 Download via Torrent (qBittorrent)
+
+O serviço qBittorrent permite baixar arquivos torrent diretamente para os HDs mapeados.
+
+### Características
+- **Interface Web**: Acessível localmente em `http://localhost:8080` (ou IP do seu servidor).
+- **Download Direto**: Mapeado para os mesmos discos que os outros serviços e para o HD externo:
+  - `/downloads/dados` → `/mnt/dados` (Disco principal)
+  - `/downloads/dados2` → `/mnt/dados2` (Disco secundário)
+  - `/downloads/externo` → `/mnt/externo` (Disco externo)
+- **Permissões de I/O**: Rodando com `PUID=1000` e `PGID=1000`, o que garante que todos os arquivos baixados tenham as permissões corretas para o Samba e o Jellyfin/Komga/Navidrome lerem ou moverem sem problemas.
+
+### Configuração de Acesso Inicial
+1. Acesse `http://localhost:8080` (Web UI).
+2. O qBittorrent gera uma senha temporária única no log do contêiner por motivos de segurança. Para obter essa senha, execute:
+   ```bash
+   docker compose logs qbittorrent | grep "password"
+   ```
+3. Use o usuário padrão `admin` e a senha temporária encontrada no log.
+4. Após o primeiro login, acesse **Tools -> Options -> Web UI** e configure uma senha definitiva segura.
+5. Ao adicionar um torrent, altere o diretório de destino para `/downloads/dados/filmes`, `/downloads/dados/series`, etc., dependendo de onde deseja salvar.
 
 ## 📁 Organização de Mídia Recomendada
 
@@ -280,12 +286,10 @@ docker compose up -d
 
 ### Configurar Samba (Compartilhamento de Arquivos)
 
-#### Alterar Credenciais Padrão
-Edite o arquivo `fileserver/samba.yml`:
-```yaml
-command:
-  - "-u"
-  - "seu_usuario;sua_senha_segura"  # Altere estas credenciais
+#### Alterar Credenciais
+Edite `SAMBA_USER` e `SAMBA_PASSWORD` no seu `.env` (não edite `fileserver/samba.yml` diretamente) e recrie o container:
+```bash
+docker compose up -d --force-recreate samba
 ```
 
 #### Acessar Compartilhamentos
@@ -395,20 +399,12 @@ Test-NetConnection -ComputerName localhost -Port 445
 netstat -an | findstr ":445"
 ```
 
-#### Backup não funciona
-```powershell
-# Verificar logs do backup
-docker compose logs backup-configs --tail 100
-
-# Verificar permissões
-ls -la /mnt/backup
+#### Problema de permissão ao criar backup manual (Linux)
+Se houver problemas ao criar ou acessar a pasta `/mnt/backup`:
+```bash
+# Ajustar proprietário e permissões da pasta de backup
 sudo chown -R 1000:1000 /mnt/backup
-
-# Verificar espaço em disco
-df -h /mnt/backup
-
-# Executar backup manual
-docker exec backup-configs /backup.sh
+sudo chmod -R 755 /mnt/backup
 ```
 
 ### Problemas de Permissão
@@ -437,13 +433,15 @@ docker compose up -d --force-recreate jellyfin
 ## 🔒 Segurança
 
 ### Recomendações de Segurança
-- ✅ Altere **todas** as credenciais padrão (especialmente Samba)
-- ✅ Use senhas fortes (mínimo 16 caracteres)
+- ✅ Defina `SAMBA_PASSWORD` no `.env` com uma senha forte (mínimo 16 caracteres) — o serviço não sobe sem ela
+- ✅ Nunca commite o arquivo `.env` (já está no `.gitignore`)
 - ✅ Configure firewall para limitar acesso às portas
 - ✅ Use VPN para acesso remoto
 - ✅ Mantenha backups regulares e criptografados
-- ✅ Mantenha as imagens Docker atualizadas
+- ✅ As imagens Docker estão fixadas em versões específicas (não `:latest`) para evitar updates quebrando a stack sem aviso — atualize deliberadamente revisando o changelog de cada serviço antes de subir a versão nos arquivos `.yml`
 - ✅ Configure HTTPS para acesso externo
+- ✅ Portainer tem acesso ao socket do Docker (equivale a root no host): não exponha a porta 9020 diretamente na internet sem VPN, IP allowlist ou autenticação adicional (ex: Authelia)
+- ⚠️ O qBittorrent tem acesso de **escrita** à raiz de `/mnt/dados` e `/mnt/dados2` (diferente dos demais serviços, que são somente leitura) — avalie restringir a uma subpasta dedicada de downloads
 
 ### Configuração de Firewall
 ```powershell
@@ -462,6 +460,9 @@ sudo ufw allow 8082/tcp  # Komga
 sudo ufw allow 4533/tcp  # Navidrome
 sudo ufw allow 9020/tcp  # Portainer
 sudo ufw allow 445/tcp   # Samba
+sudo ufw allow 8080/tcp  # qBittorrent Web UI
+sudo ufw allow 6881/tcp  # Torrent TCP
+sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw reload
 ```
 
@@ -487,6 +488,19 @@ server {
     }
 }
 ```
+
+### Exposição Segura (Cloudflare Tunnel)
+
+Caso utilize o **Cloudflare Tunnel** (Zero Trust) em vez de um Reverse Proxy tradicional para expor a stack na internet, configure o novo serviço de torrent seguindo estes passos no dashboard do Cloudflare:
+
+1. Acesse o **Cloudflare Zero Trust Dashboard** → **Access** → **Tunnels**.
+2. Selecione o túnel ativo do seu servidor e clique em **Configure**.
+3. Na aba **Public Hostname**, adicione um novo hostname:
+   - **Subdomain**: `torrent` (ou `qbittorrent`)
+   - **Domain**: `seudominio.com`
+   - **Service Type**: `HTTP`
+   - **URL**: `localhost:8080` (ou o IP local do servidor, ex: `192.168.0.121:8080`)
+4. Salve as alterações. O qBittorrent estará disponível externamente com HTTPS de forma segura em `https://torrent.seudominio.com` sem a necessidade de expor portas diretamente no seu roteador.
 
 ## 📊 Monitoramento e Métricas
 
@@ -519,6 +533,8 @@ docker compose logs --timestamps --tail=100
 ```
 
 ### Health Checks
+Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome e qBittorrent têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis.
+
 ```powershell
 # Verificar saúde de todos os containers
 docker ps --format "table {{.Names}}\t{{.Status}}"
@@ -531,6 +547,7 @@ Test-NetConnection -ComputerName localhost -Port 8096  # Jellyfin
 Test-NetConnection -ComputerName localhost -Port 8082  # Komga
 Test-NetConnection -ComputerName localhost -Port 4533  # Navidrome
 Test-NetConnection -ComputerName localhost -Port 9020  # Portainer
+Test-NetConnection -ComputerName localhost -Port 8080  # qBittorrent
 ```
 
 ## 🚀 Implantação em Produção (Ubuntu + aaPanel)
@@ -623,6 +640,9 @@ sudo ufw allow 8082/tcp  # Komga
 sudo ufw allow 4533/tcp  # Navidrome
 sudo ufw allow 9020/tcp  # Portainer
 sudo ufw allow 445/tcp   # Samba
+sudo ufw allow 8080/tcp  # qBittorrent Web UI
+sudo ufw allow 6881/tcp  # Torrent TCP
+sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw reload
 ```
 
@@ -653,6 +673,7 @@ sudo bash install.sh
      - `komga.seudominio.com` → `http://127.0.0.1:8082`
      - `music.seudominio.com` → `http://127.0.0.1:4533`
      - `portainer.seudominio.com` → `http://127.0.0.1:9020`
+     - `torrent.seudominio.com` → `http://127.0.0.1:8080`
 
 3. **Configurar SSL**:
    - Para cada site, configure SSL via Let's Encrypt
@@ -665,6 +686,7 @@ curl -I http://localhost:8096  # Jellyfin
 curl -I http://localhost:8082  # Komga
 curl -I http://localhost:4533  # Navidrome
 curl -I http://localhost:9020  # Portainer
+curl -I http://localhost:8080  # qBittorrent
 
 # Verificar Samba
 smbclient -L localhost -U seu_usuario
@@ -686,6 +708,8 @@ ls -la /mnt/backup/
 ```
 MediaHome/
 ├── docker-compose.yml          # Orquestração principal
+├── .env.example                 # Template de variáveis (copie para .env)
+├── .gitignore                   # Garante que .env não seja versionado
 ├── README.md                   # Esta documentação
 ├── jellyfin/
 │   └── jellyfin.yml           # Serviço Jellyfin independente
@@ -697,8 +721,10 @@ MediaHome/
 │   └── samba.yml              # Serviço Samba independente
 ├── portainer/
 │   └── portainer.yml          # Interface de gerenciamento
+├── qbittorrent/
+│   └── qbittorrent.yml        # Serviço qBittorrent independente
 └── backup/
-    └── backup.yml             # Sistema de backup
+    └── backup.yml             # Desativado (mantido apenas para referência)
 ```
 
 ## 🎯 Casos de Uso

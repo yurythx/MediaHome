@@ -1,0 +1,10 @@
+# Credenciais e configuração real de deploy - nunca versionar
+.env
+.env.*.local
+
+# Backups locais eventualmente gerados dentro do repo
+*.tar.gz
+
+# OS / editor
+.DS_Store
+Thumbs.db

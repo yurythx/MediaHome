@@ -1,23 +1,34 @@
 # Portainer - Interface de gerenciamento Docker
-# Para iniciar apenas este serviço: docker-compose -f portainer/portainer.yml up -d
+# Para iniciar apenas este serviço: docker compose -f portainer/portainer.yml up -d
 # Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# ATENÇÃO: este serviço monta o socket do Docker (equivale a acesso root ao
+# host). Não exponha a porta diretamente na internet sem VPN/allowlist de IP
+# e uma senha forte.
+#
+# Sem healthcheck de propósito: a imagem "portainer/base" é minimalista e não
+# tem curl/wget/shell confirmados — um healthcheck com comando inexistente
+# marcaria o container como "unhealthy" mesmo funcionando normalmente.
 
 services:
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ce:2.39.4
     container_name: portainer
     restart: unless-stopped
     environment:
-      - TZ=America/Sao_Paulo
+      - TZ=${TZ:-America/Sao_Paulo}
     volumes:
       # Configurações no SSD
-      - /mnt/config/portainer:/data
+      - ${CONFIG_PATH:-/mnt/config}/portainer:/data
       # Socket do Docker
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "9020:9000"
+      - "${PORTAINER_PORT:-9020}:9000"
     networks:
       - mediahome
 
-volumes:
-  portainer_data:
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge

@@ -9,6 +9,7 @@ Esta documentação detalha o processo de implantação da Stack MediaHome (Jell
 - **Navidrome**: Servidor de música com interface web
 - **Samba**: Servidor de arquivos para compartilhamento de rede
 - **Portainer**: Gerenciamento de containers
+- **qBittorrent**: Cliente de torrent integrado para downloads diretos
 
 ## Pré-requisitos
 
@@ -37,19 +38,24 @@ sudo ufw allow 22/tcp      # SSH
 sudo ufw allow 80/tcp      # HTTP
 sudo ufw allow 443/tcp     # HTTPS
 sudo ufw allow 8096/tcp    # Jellyfin
-sudo ufw allow 8080/tcp    # Komga
+sudo ufw allow 8082/tcp    # Komga
 sudo ufw allow 4533/tcp    # Navidrome
-sudo ufw allow 1445/tcp    # Samba
-sudo ufw allow 9000/tcp    # Portainer
+sudo ufw allow 445/tcp     # Samba
+sudo ufw allow 9020/tcp    # Portainer
+sudo ufw allow 8080/tcp    # qBittorrent Web UI
+sudo ufw allow 6881/tcp    # Torrent TCP
+sudo ufw allow 6881/udp    # Torrent UDP
 sudo ufw --force enable
 
 # Criar estrutura de diretórios para mídia
 sudo mkdir -p /mnt/dados/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/dados2/{filmes,series,musicas,quadrinhos}
-sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome}
+sudo mkdir -p /mnt/externo
+sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 1000:1000 /mnt/dados
 sudo chown -R 1000:1000 /mnt/dados2
+sudo chown -R 1000:1000 /mnt/externo
 ```
 
 ## Configuração do aaPanel
@@ -57,9 +63,10 @@ sudo chown -R 1000:1000 /mnt/dados2
 ### 1. Configurar Domínios
 No painel do aaPanel, adicione os seguintes domínios:
 - `jellyfin.seudominio.com` → Proxy reverso para `192.168.0.121:8096`
-- `komga.seudominio.com` → Proxy reverso para `192.168.0.121:8080`
+- `komga.seudominio.com` → Proxy reverso para `192.168.0.121:8082`
 - `navidrome.seudominio.com` → Proxy reverso para `192.168.0.121:4533`
-- `portainer.seudominio.com` → Proxy reverso para `192.168.0.121:9000`
+- `portainer.seudominio.com` → Proxy reverso para `192.168.0.121:9020`
+- `torrent.seudominio.com` → Proxy reverso para `192.168.0.121:8080`
 
 ### 2. Configurar SSL
 Para cada domínio, configure certificados SSL (Let's Encrypt recomendado).
@@ -80,6 +87,16 @@ location / {
     client_max_body_size 0;
 }
 ```
+
+### Alternativa: Exposição via Cloudflare Tunnel (Zero Trust)
+Se você utiliza o **Cloudflare Tunnel** em vez de configurar domínios e proxy reverso no aaPanel para acessar os serviços:
+1. Abra o painel do Cloudflare Zero Trust.
+2. Navegue até **Access** → **Tunnels** e edite o túnel correspondente ao seu servidor.
+3. Na aba **Public Hostname**, adicione o hostname para o qBittorrent:
+   - **Public Hostname**: `torrent.seudominio.com` (ou similar)
+   - **Service Type**: `HTTP`
+   - **URL**: `localhost:8080` (ou o IP local do servidor, ex: `192.168.0.121:8080`)
+4. Como o tráfego do túnel é criptografado e repassado diretamente via agente local, não é necessário abrir portas adicionais no roteador e você pode manter as portas de gerenciamento restritas ao IP local no firewall.
 
 ## Preparação dos Arquivos
 
@@ -109,11 +126,13 @@ Certifique-se de que a estrutura de diretórios está correta:
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 1000:1000 /mnt/dados
 sudo chown -R 1000:1000 /mnt/dados2
+sudo chown -R 1000:1000 /mnt/externo
 
 # Definir permissões adequadas
 sudo chmod -R 755 /mnt/config
 sudo chmod -R 755 /mnt/dados
 sudo chmod -R 755 /mnt/dados2
+sudo chmod -R 755 /mnt/externo
 ```
 
 ## Processo de Deploy
@@ -123,9 +142,12 @@ sudo chmod -R 755 /mnt/dados2
 # Navegar para o diretório do projeto
 cd /caminho/para/MediaHome
 
-# Criar rede Docker
-docker network create mediahome
+# Configurar variáveis de ambiente (obrigatório)
+cp .env.example .env
+nano .env   # defina SAMBA_PASSWORD e ajuste HOST_IP/caminhos para o seu servidor
 ```
+
+> A rede Docker `mediahome` é criada automaticamente pelo Compose (declarada em cada `.yml` de serviço) — não é preciso criá-la manualmente.
 
 ### 2. Iniciar Serviços de Mídia
 ```bash
@@ -142,18 +164,16 @@ docker-compose -f komga/komga.yml up -d
 docker-compose -f navidrome/navidrome.yml up -d
 ```
 
-### 3. Iniciar Serviços de Infraestrutura
+### 3. Iniciar Serviços de Infraestrutura e Torrent
 ```bash
 # Iniciar Samba
 docker-compose -f fileserver/samba.yml up -d
 
 # Iniciar Portainer
 docker-compose -f portainer/portainer.yml up -d
-```
 
-### 4. Iniciar Backup (Opcional)
-```bash
-docker-compose -f backup/backup.yml up -d
+# Iniciar qBittorrent
+docker-compose -f qbittorrent/qbittorrent.yml up -d
 ```
 
 ## Verificação
@@ -170,13 +190,16 @@ docker-compose logs -f
 curl -I http://192.168.0.121:8096
 
 # Testar Komga
-curl -I http://192.168.0.121:8080
+curl -I http://192.168.0.121:8082
 
 # Testar Navidrome
 curl -I http://192.168.0.121:4533
 
 # Testar Samba (via SMB)
-smbclient -L //192.168.0.121 -p 1445 -U suporte
+smbclient -L //192.168.0.121 -p 445 -U suporte
+
+# Testar qBittorrent
+curl -I http://192.168.0.121:8080
 ```
 
 ## Configuração Inicial dos Serviços
@@ -202,13 +225,19 @@ smbclient -L //192.168.0.121 -p 1445 -U suporte
 3. A biblioteca de música será escaneada automaticamente
 
 ### Samba
-O Samba está pré-configurado com:
-- **Usuário**: suporte
-- **Senha**: suporte123
+O Samba usa as credenciais definidas em `SAMBA_USER`/`SAMBA_PASSWORD` no `.env` (sem senha padrão — defina antes de subir a stack):
 - **Compartilhamentos**:
   - `\\192.168.0.121\Dados` → `/mnt/dados`
   - `\\192.168.0.121\Dados2` → `/mnt/dados2`
   - `\\192.168.0.121\Config` → `/mnt/config`
+
+### qBittorrent
+1. Acesse `http://192.168.0.121:8080` (ou o domínio configurado).
+2. Obtenha a senha temporária inicial nos logs do contêiner:
+   ```bash
+   docker logs qbittorrent | grep "password"
+   ```
+3. Acesse com o usuário `admin` e mude a senha nas opções de Web UI.
 
 ### Portainer
 1. Acesse `https://portainer.seudominio.com`
@@ -257,13 +286,10 @@ docker-compose pull
 docker-compose up -d
 ```
 
-### Backup de Configurações
+### Backup de Configurações (Manual)
 ```bash
-# Backup das configurações
-sudo tar -czf mediahome-config-$(date +%Y%m%d).tar.gz /mnt/config/
-
-# Backup automático via cron (opcional)
-echo "0 2 * * * root tar -czf /backup/mediahome-config-\$(date +\%Y\%m\%d).tar.gz /mnt/config/" | sudo tee -a /etc/crontab
+# Backup manual das configurações em arquivo compactado
+sudo tar -czf /mnt/backup/mediahome-config-$(date +%Y%m%d_%H%M%S).tar.gz -C /mnt/config .
 ```
 
 ## Segurança
@@ -276,10 +302,12 @@ echo "0 2 * * * root tar -czf /backup/mediahome-config-\$(date +\%Y\%m\%d).tar.g
 - Samba com autenticação
 
 ### Recomendações Adicionais
-- Alterar credenciais do Samba
+- Definir uma `SAMBA_PASSWORD` forte no `.env` (obrigatório, sem valor padrão)
+- Nunca commitar o `.env` no git (já coberto pelo `.gitignore`)
+- Restringir o acesso ao Portainer (porta 9020) via VPN/allowlist de IP — ele tem acesso ao socket do Docker, equivalente a root no host
 - Configurar backup externo das mídias
 - Monitorar uso de disco
-- Manter sistema atualizado
+- Atualizar as imagens de forma deliberada: as versões estão fixadas nos `.yml` (não usam `:latest`); revise o changelog do serviço antes de subir a versão
 
 ## Solução de Problemas
 
@@ -324,14 +352,18 @@ Após a configuração completa:
 - **Komga**: https://komga.seudominio.com
 - **Navidrome**: https://navidrome.seudominio.com
 - **Portainer**: https://portainer.seudominio.com
-- **Samba**: `\\192.168.0.121` (porta 1445)
+- **Samba**: `\\192.168.0.121` (porta 445)
+- **qBittorrent**: https://torrent.seudominio.com
 
 ## Atualizações
 
-Para atualizar os serviços:
+As versões das imagens estão fixadas em cada `.yml` (não usam `:latest`). Para atualizar um serviço:
+1. Confira o changelog/release notes da imagem.
+2. Edite a tag da imagem no respectivo `.yml` (ex: `jellyfin/jellyfin:10.11.5` → nova versão).
+3. Aplique:
 ```bash
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ---
