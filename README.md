@@ -142,17 +142,18 @@ docker compose pull && docker compose up -d
 ```
 
 ### Gerenciamento Individual de Serviços
+Rode a partir da raiz do projeto e sempre com `--env-file .env` — sem essa flag, o Compose procura o `.env` dentro da pasta do serviço (ex: `jellyfin/.env`) em vez da raiz, e o Samba recusa subir por não achar `SAMBA_PASSWORD`.
 ```powershell
 # Iniciar serviço específico
-docker compose -f jellyfin/jellyfin.yml up -d
-docker compose -f komga/komga.yml up -d
-docker compose -f navidrome/navidrome.yml up -d
-docker compose -f fileserver/samba.yml up -d
-docker compose -f portainer/portainer.yml up -d
-docker compose -f qbittorrent/qbittorrent.yml up -d
+docker compose --env-file .env -f jellyfin/jellyfin.yml up -d
+docker compose --env-file .env -f komga/komga.yml up -d
+docker compose --env-file .env -f navidrome/navidrome.yml up -d
+docker compose --env-file .env -f fileserver/samba.yml up -d
+docker compose --env-file .env -f portainer/portainer.yml up -d
+docker compose --env-file .env -f qbittorrent/qbittorrent.yml up -d
 
 # Parar serviço específico
-docker compose -f jellyfin/jellyfin.yml down
+docker compose --env-file .env -f jellyfin/jellyfin.yml down
 ```
 
 ### Estrutura de Volumes

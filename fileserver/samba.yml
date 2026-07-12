@@ -1,5 +1,5 @@
 # Samba - Servidor de arquivos
-# Para iniciar apenas este serviço: docker compose -f fileserver/samba.yml up -d
+# Para iniciar apenas este serviço: docker compose --env-file .env -f fileserver/samba.yml up -d
 # Para usar com compose principal: incluído automaticamente
 # Variáveis lidas do .env na raiz do projeto (veja .env.example)
 #

@@ -1,5 +1,5 @@
 # Portainer - Interface de gerenciamento Docker
-# Para iniciar apenas este serviço: docker compose -f portainer/portainer.yml up -d
+# Para iniciar apenas este serviço: docker compose --env-file .env -f portainer/portainer.yml up -d
 # Para usar com compose principal: incluído automaticamente
 # Variáveis lidas do .env na raiz do projeto (veja .env.example)
 #
