@@ -148,6 +148,16 @@ docker compose logs jellyfin --tail 50
 
 > ⚠️ **IMPORTANTE**: `PEERTUBE_HOSTNAME` (no `.env`) é definitivo após o primeiro `docker compose up` — o PeerTube não suporta trocar de domínio depois sem apagar o banco (`/mnt/config/peertube/postgres`) e recomeçar do zero. Decida o domínio final antes de subir este serviço pela primeira vez.
 
+##### Enviar vários clipes de uma vez (sem arrastar um por um na web)
+O PeerTube **não** escaneia pastas automaticamente como o Jellyfin — cada vídeo precisa ser enviado explicitamente. Para enviar vários que já estão em `/mnt/dados`, `/mnt/dados2` ou `/mnt/externo` sem baixar no seu PC antes, instale o `peertube-cli` **no próprio servidor Ubuntu** (ele já tem acesso nativo a esses discos, sem precisar de nada dentro do container):
+```bash
+# No servidor Ubuntu (precisa de Node.js >= 22)
+sudo npm install -g @peertube/peertube-cli
+
+peertube-cli auth add -u https://SEU_PEERTUBE_HOSTNAME -U root --password 'sua_senha'
+peertube-cli upload /mnt/dados/Filmes/clipe.mp4
+```
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos

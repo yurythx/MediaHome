@@ -64,6 +64,16 @@ services:
     volumes:
       - ${CONFIG_PATH:-/mnt/config}/peertube/data:/data
       - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config
+      # Discos de mídia (somente leitura). O PeerTube NÃO escaneia essas
+      # pastas automaticamente (ele não é um leitor de biblioteca como o
+      # Jellyfin) - todo vídeo ainda precisa ser enviado explicitamente via
+      # WebUI ou "peertube-cli upload" (rodado no host, não aqui dentro).
+      # Este mount só serve para o comando interno de baixo nível
+      # "create-import-video-file-job" (troca o arquivo de um vídeo que já
+      # existe no PeerTube por um arquivo local) - uso avançado, opcional.
+      - ${MEDIA_PATH_1:-/mnt/dados}:/media/dados:ro
+      - ${MEDIA_PATH_2:-/mnt/dados2}:/media/dados2:ro
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/media/externo:ro
     ports:
       - "${PEERTUBE_PORT:-9000}:9000"
     healthcheck:
