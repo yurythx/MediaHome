@@ -101,6 +101,7 @@ docker compose logs jellyfin --tail 50
    - **Filmes**: `/media/dados/Filmes`
    - **Séries**: `/media/dados/Series`
    - **Música**: `/media/dados/Musica`
+   - **Disco externo**: `/media/externo` (o que estiver salvo em `/mnt/externo`)
 4. Configure metadados e scrapers
 
 #### 📚 Komga
@@ -109,6 +110,7 @@ docker compose logs jellyfin --tail 50
 3. Adicione bibliotecas:
    - **Quadrinhos**: `/data/Quadrinhos`
    - **Mangás**: `/data2/Mangas`
+   - **Disco externo**: `/data3` (o que estiver salvo em `/mnt/externo`)
 4. Configure leitura e metadados
 
 #### 🎵 Navidrome
@@ -117,14 +119,16 @@ docker compose logs jellyfin --tail 50
 3. As pastas de música são detectadas automaticamente:
    - `/music` (dados)
    - `/music2` (dados2)
+   - `/music3` (disco externo)
 4. Execute rescan da biblioteca
 
 #### 📁 Samba
-- **Windows**: Acesse `\\localhost\Dados` e `\\localhost\Dados2`
+- **Windows**: Acesse `\\localhost\Dados`, `\\localhost\Dados2` e `\\localhost\Externo`
 - **Credenciais**: definidas em `SAMBA_USER`/`SAMBA_PASSWORD` no seu `.env` (não há mais senha padrão fixa no código — o container recusa subir se `SAMBA_PASSWORD` não estiver definida)
 - **Compartilhamentos**:
   - `Dados` → `/mnt/dados`
   - `Dados2` → `/mnt/dados2`
+  - `Externo` → `/mnt/externo`
   - `Config` → `/mnt/config`
 
 > ⚠️ **IMPORTANTE**: Use uma senha forte em `SAMBA_PASSWORD` e nunca commite o arquivo `.env`.
@@ -305,17 +309,20 @@ O serviço qBittorrent permite baixar arquivos torrent diretamente para os HDs m
    - **Séries**: `/media/dados/Series`
    - **Música**: `/media/dados/Musica`
    - **Documentários**: `/media/dados/Documentarios`
+   - **Disco externo**: `/media/externo`
 
 #### Komga
 1. Acesse **Admin → Libraries → New Library**
 2. Configure os caminhos:
    - **Quadrinhos**: `/data/Quadrinhos`
    - **Mangás**: `/data2/Mangas`
+   - **Disco externo**: `/data3`
 
 #### Navidrome
 - Configuração automática para:
   - `/music` (mapeado para `/mnt/dados/Musica`)
   - `/music2` (mapeado para `/mnt/dados2/Musica`)
+  - `/music3` (mapeado para `/mnt/externo`)
 
 ## 🔗 Integração e Configurações Avançadas
 
@@ -401,7 +408,7 @@ docker compose restart jellyfin
 docker compose logs komga --tail 100
 
 # Verificar caminhos internos
-docker exec komga ls -la /data /data2
+docker exec komga ls -la /data /data2 /data3
 
 # Verificar permissões no host
 sudo chown -R 1000:1000 /mnt/dados /mnt/dados2
@@ -416,7 +423,7 @@ docker compose logs navidrome --tail 100
 # Acesse http://localhost:4533 → Settings → Library → Rescan
 
 # Verificar caminhos
-docker exec navidrome ls -la /music /music2
+docker exec navidrome ls -la /music /music2 /music3
 ```
 
 #### Samba inacessível

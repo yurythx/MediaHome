@@ -21,6 +21,7 @@ services:
       # Pontos de montagem adicionais para facilitar navegação (raiz das mídias)
       - ${MEDIA_PATH_1:-/mnt/dados}:/media/dados:ro
       - ${MEDIA_PATH_2:-/mnt/dados2}:/media/dados2:ro
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/media/externo:ro
     ports:
       - "${JELLYFIN_PORT:-8096}:8096"
     networks:

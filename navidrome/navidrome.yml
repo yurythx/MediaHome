@@ -13,7 +13,7 @@ services:
       - PGID=${PGID:-1000}
       - TZ=${TZ:-America/Sao_Paulo}
       # Escanear múltiplas pastas de música
-      - ND_MUSICFOLDERS=/music,/music2
+      - ND_MUSICFOLDERS=/music,/music2,/music3
     volumes:
       # Configurações no SSD
       - ${CONFIG_PATH:-/mnt/config}/navidrome:/data
@@ -21,6 +21,8 @@ services:
       - ${MEDIA_PATH_1:-/mnt/dados}:/music:ro
       # Segundo disco (dados2)
       - ${MEDIA_PATH_2:-/mnt/dados2}:/music2:ro
+      # Disco externo
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/music3:ro
     ports:
       - "${NAVIDROME_PORT:-4533}:4533"
     healthcheck:

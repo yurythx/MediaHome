@@ -19,6 +19,8 @@ services:
       - ${MEDIA_PATH_1:-/mnt/dados}:/data:ro
       # Segundo disco (dados2)
       - ${MEDIA_PATH_2:-/mnt/dados2}:/data2:ro
+      # Disco externo
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/data3:ro
     ports:
       - "${KOMGA_PORT:-8082}:25600"
     healthcheck:

@@ -24,10 +24,11 @@ services:
       # Compartilhamentos
       - ${MEDIA_PATH_1:-/mnt/dados}:/dados
       - ${MEDIA_PATH_2:-/mnt/dados2}:/dados2
+      - ${MEDIA_PATH_EXT:-/mnt/externo}:/externo
       - ${CONFIG_PATH:-/mnt/config}:/config
     ports:
       - "${SAMBA_PORT:-445}:445"
-    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}" -p'
+    command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Externo;/externo;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}" -p'
     networks:
       - mediahome
 
