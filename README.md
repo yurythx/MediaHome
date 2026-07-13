@@ -199,6 +199,14 @@ Os dados são persistidos em volumes locais Docker:
 
 Como os backups automáticos constantes ocupavam muito espaço em disco, o contêiner de backup automático foi removido. Os backups agora podem ser executados manualmente no host quando você preferir.
 
+> ⚠️ **PeerTube usa banco de dados (Postgres)**: copiar `/mnt/config/peertube/postgres` com o container rodando pode gerar um backup corrompido/inconsistente (cópia "a quente" dos arquivos do banco). Pare o Postgres do PeerTube antes de rodar o `tar` abaixo:
+> ```bash
+> docker compose stop peertube peertube-postgres
+> # ... rode o backup ...
+> docker compose start peertube-postgres peertube
+> ```
+> Os demais serviços (Jellyfin, Komga, Navidrome, Samba, qBittorrent, Portainer) não usam banco de dados e podem ser copiados com tudo rodando sem esse risco.
+
 ### Criar Backup Manual (Linux/Ubuntu)
 ```bash
 # Criar backup compactado das configurações
@@ -425,6 +433,20 @@ Test-NetConnection -ComputerName localhost -Port 445
 # Verificar conflito de portas
 netstat -an | findstr ":445"
 ```
+
+#### PeerTube não sobe / fica reiniciando
+```powershell
+# Ver se o Postgres/Redis subiram antes do app (ordem esperada via depends_on)
+docker compose ps peertube-postgres peertube-redis peertube
+
+# Ver o motivo real - geralmente é PEERTUBE_HOSTNAME/PEERTUBE_SECRET não
+# definidos no .env, ou o Postgres ainda inicializando
+docker compose logs peertube --tail 100
+
+# Verificar saúde do Postgres
+docker compose logs peertube-postgres --tail 50
+```
+Se você errou o valor de `PEERTUBE_HOSTNAME` no primeiro `up`, não dá para só editar o `.env` e reiniciar — é preciso apagar `/mnt/config/peertube/postgres` (perde os dados do PeerTube) e subir de novo com o valor correto.
 
 #### Problema de permissão ao criar backup manual (Linux)
 Se houver problemas ao criar ou acessar a pasta `/mnt/backup`:
