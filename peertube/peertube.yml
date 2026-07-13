@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${PEERTUBE_DB_USERNAME:-peertube}
-      - POSTGRES_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}
+      - "POSTGRES_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}"
       - POSTGRES_DB=peertube
     volumes:
       - ${CONFIG_PATH:-/mnt/config}/peertube/postgres:/var/lib/postgresql/data
@@ -46,21 +46,21 @@ services:
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
       - PEERTUBE_DB_USERNAME=${PEERTUBE_DB_USERNAME:-peertube}
-      - PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}
+      - "PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}"
       - PEERTUBE_DB_SSL=false
       - PEERTUBE_DB_HOSTNAME=peertube-postgres
       - PEERTUBE_REDIS_HOSTNAME=peertube-redis
       # Domínio definitivo - veja o aviso no topo do arquivo
-      - PEERTUBE_WEBSERVER_HOSTNAME=${PEERTUBE_HOSTNAME:?defina PEERTUBE_HOSTNAME (o domínio, sem https://) no .env}
+      - "PEERTUBE_WEBSERVER_HOSTNAME=${PEERTUBE_HOSTNAME:?defina PEERTUBE_HOSTNAME (o dominio, sem https, no .env)}"
       # Sem PEERTUBE_WEBSERVER_PORT/HTTPS: usa o padrão 443+https, correto
       # para rodar atrás do proxy reverso do aaPanel (mesmo padrão dos outros serviços)
-      - PEERTUBE_ADMIN_EMAIL=${PEERTUBE_ADMIN_EMAIL:?defina PEERTUBE_ADMIN_EMAIL no .env}
-      # Gere com: openssl rand -hex 32
-      - PEERTUBE_SECRET=${PEERTUBE_SECRET:?defina PEERTUBE_SECRET no .env (gere com: openssl rand -hex 32)}
+      - "PEERTUBE_ADMIN_EMAIL=${PEERTUBE_ADMIN_EMAIL:?defina PEERTUBE_ADMIN_EMAIL no .env}"
+      # Gere com "openssl rand -hex 32"
+      - "PEERTUBE_SECRET=${PEERTUBE_SECRET:?defina PEERTUBE_SECRET no .env, gere com openssl rand -hex 32}"
       # IPs confiados para ler X-Forwarded-For (o proxy do aaPanel roda no host,
       # fora da rede Docker - confira com "docker network inspect mediahome"
       # se os logs de IP do PeerTube parecerem errados e ajuste aqui)
-      - PEERTUBE_TRUST_PROXY=["127.0.0.1", "loopback", "172.16.0.0/12"]
+      - 'PEERTUBE_TRUST_PROXY=["127.0.0.1", "loopback", "172.16.0.0/12"]'
     volumes:
       - ${CONFIG_PATH:-/mnt/config}/peertube/data:/data
       - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config
