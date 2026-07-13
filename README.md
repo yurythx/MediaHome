@@ -479,6 +479,8 @@ New-NetFirewallRule -DisplayName "Komga" -Direction Inbound -Protocol TCP -Local
 New-NetFirewallRule -DisplayName "Navidrome" -Direction Inbound -Protocol TCP -LocalPort 4533 -Action Allow
 New-NetFirewallRule -DisplayName "Portainer" -Direction Inbound -Protocol TCP -LocalPort 9020 -Action Allow
 New-NetFirewallRule -DisplayName "Samba" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow
+New-NetFirewallRule -DisplayName "qBittorrent" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
+New-NetFirewallRule -DisplayName "PeerTube" -Direction Inbound -Protocol TCP -LocalPort 9000 -Action Allow
 ```
 
 ```bash
