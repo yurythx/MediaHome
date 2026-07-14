@@ -60,6 +60,10 @@ services:
       - peertube-redis
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
+      # "info" (não "debug") - nível debug faz o PeerTube despejar o conteúdo
+      # bruto de comandos internos do Redis/Bull (fila de transcodificação)
+      # nos logs, o que já encheu 72GB de disco em ~1 dia numa instância real.
+      - PEERTUBE_LOG_LEVEL=${PEERTUBE_LOG_LEVEL:-info}
       - PEERTUBE_DB_USERNAME=${PEERTUBE_DB_USERNAME:-peertube}
       - "PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}"
       - PEERTUBE_DB_SSL=false

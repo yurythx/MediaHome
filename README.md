@@ -465,6 +465,17 @@ docker compose logs peertube-postgres --tail 50
 ```
 Se você errou o valor de `PEERTUBE_HOSTNAME` no primeiro `up`, não dá para só editar o `.env` e reiniciar — é preciso apagar `/mnt/config/peertube/postgres` (perde os dados do PeerTube) e subir de novo com o valor correto.
 
+#### Disco cheio / log do PeerTube gigante (dezenas de GB)
+Já aconteceu em produção: o log do container `peertube` chegou a **72GB em ~1 dia** e quase encheu o disco. Todos os serviços já têm limite de log (`max-size`/`max-file`) configurado, então isso não deveria mais acontecer — mas se acontecer:
+```bash
+# Ver qual container está com log grande
+docker ps -q | xargs -I{} sh -c 'echo {} $(docker inspect --format="{{.LogPath}}" {} | xargs du -h)'
+
+# Esvaziar sem parar o container (libera espaço na hora)
+sudo truncate -s 0 "$(docker inspect --format='{{.LogPath}}' peertube)"
+```
+A causa raiz identificada: `PEERTUBE_LOG_LEVEL=debug` faz o PeerTube despejar o conteúdo bruto (buffer, byte a byte) de comandos internos do Redis/Bull (fila de transcodificação) no log — um volume gigantesco em pouco tempo. `PEERTUBE_LOG_LEVEL` já vem fixado em `info` no `.env.example`; **não mude para `debug` em produção** a não ser que seja por um período curto e monitorado, para investigar algo específico.
+
 #### Problema de permissão ao criar backup manual (Linux)
 Se houver problemas ao criar ou acessar a pasta `/mnt/backup`:
 ```bash
