@@ -11,6 +11,11 @@ services:
     image: jellyfin/jellyfin:10.11.5
     container_name: jellyfin
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}

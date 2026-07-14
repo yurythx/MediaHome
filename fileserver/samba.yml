@@ -17,6 +17,11 @@ services:
     image: dperson/samba:latest
     container_name: samba
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
       - USER=${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}
