@@ -18,6 +18,11 @@ services:
     image: postgres:17.10-alpine
     container_name: peertube-postgres
     restart: unless-stopped
+    # ATENÇÃO: esta imagem roda com usuário interno próprio UID/GID 70 (não
+    # PUID/PGID=1000 como os outros serviços). O diretório do volume abaixo
+    # (.../peertube/postgres) precisa ser "chown 70:70", não 1000:1000 - um
+    # chown -R 1000:1000 recursivo em /mnt/config vai quebrar o Postgres
+    # ("Permission denied" ao abrir os próprios arquivos). Veja README.md.
     logging:
       driver: json-file
       options:

@@ -53,6 +53,9 @@ sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
 sudo mkdir -p /mnt/config/peertube/{data,config,postgres,redis}
 sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
+# O Postgres do PeerTube roda com um usuário interno próprio (UID/GID 70,
+# não 1000) - sem isso, ele não consegue abrir os próprios arquivos de banco
+sudo chown -R 70:70 /mnt/config/peertube/postgres
 ```
 
 ### Instalação e Execução
@@ -248,6 +251,7 @@ tar -xzf C:\MediaHome\backup\nome_do_arquivo.tar.gz -C C:\MediaHome\config\
 
 # 3. Ajustar permissões (apenas Linux)
 sudo chown -R 1000:1000 /mnt/config
+sudo chown -R 70:70 /mnt/config/peertube/postgres  # Postgres usa UID/GID 70, não 1000
 
 # 4. Reiniciar serviços
 docker compose up -d
@@ -465,6 +469,14 @@ docker compose logs peertube-postgres --tail 50
 ```
 Se você errou o valor de `PEERTUBE_HOSTNAME` no primeiro `up`, não dá para só editar o `.env` e reiniciar — é preciso apagar `/mnt/config/peertube/postgres` (perde os dados do PeerTube) e subir de novo com o valor correto.
 
+#### PeerTube sobe mas todo acesso dá erro 500 ("could not open file ... Permission denied")
+Se `docker compose logs peertube` mostrar algo como `SequelizeConnectionError: could not open file "base/..." Permission denied` com `"routine": "mdopenfork"`, é permissão de arquivo do Postgres — provavelmente rodou `chown -R 1000:1000 /mnt/config` depois que o Postgres já tinha inicializado o banco. Esse Postgres roda com usuário interno **UID/GID 70**, não 1000. Corrija sem perder dados:
+```bash
+docker compose stop peertube peertube-postgres
+sudo chown -R 70:70 /mnt/config/peertube/postgres
+docker compose start peertube-postgres peertube
+```
+
 #### Disco cheio / log do PeerTube gigante (dezenas de GB)
 Já aconteceu em produção: o log do container `peertube` chegou a **72GB em ~1 dia** e quase encheu o disco. Todos os serviços já têm limite de log (`max-size`/`max-file`) configurado, então isso não deveria mais acontecer — mas se acontecer:
 ```bash
@@ -489,6 +501,8 @@ sudo chmod -R 755 /mnt/backup
 # Linux - Ajustar permissões
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
+# Postgres do PeerTube usa UID/GID 70, não 1000 - reaplique por cima:
+sudo chown -R 70:70 /mnt/config/peertube/postgres
 ```
 
 ```powershell
