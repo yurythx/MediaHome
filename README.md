@@ -56,6 +56,7 @@ sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/exte
 # O Postgres do PeerTube roda com um usuário interno próprio (UID/GID 70,
 # não 1000) - sem isso, ele não consegue abrir os próprios arquivos de banco
 sudo chown -R 70:70 /mnt/config/peertube/postgres
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 ```
 
 ### Instalação e Execução
@@ -252,6 +253,7 @@ tar -xzf C:\MediaHome\backup\nome_do_arquivo.tar.gz -C C:\MediaHome\config\
 # 3. Ajustar permissões (apenas Linux)
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 70:70 /mnt/config/peertube/postgres  # Postgres usa UID/GID 70, não 1000
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 
 # 4. Reiniciar serviços
 docker compose up -d
@@ -477,6 +479,14 @@ sudo chown -R 70:70 /mnt/config/peertube/postgres
 docker compose start peertube-postgres peertube
 ```
 
+#### Upload de vídeo no PeerTube falha com erro 500 ("EACCES: permission denied" em `/data/tmp/resumable-uploads`)
+Mesma família de problema, mas no container `peertube` (não no Postgres): a imagem roda com usuário interno **UID/GID 999**, diferente do 1000 usado pelos outros serviços e do 70 do Postgres. Se `/mnt/config/peertube/data` ou `/mnt/config/peertube/config` ficarem com outro dono (ex: depois de um `chown -R 1000:1000 /mnt/config` genérico), o upload falha assim que tenta gravar o arquivo temporário. Corrija:
+```bash
+docker compose stop peertube
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config
+docker compose start peertube
+```
+
 #### Permissões de `/mnt/config` "voltam sozinhas" para outro dono após reiniciar os containers
 Causa raiz real encontrada em produção: a imagem `dperson/samba` (usada no serviço `samba`), sem as variáveis `USERID`/`GROUPID` explícitas, cria seu usuário interno com **UID/GID 100 por padrão** e re-chowna tudo que ela compartilha toda vez que o container sobe — e como ela montava a raiz de `/mnt/config` inteira, isso quebrava Jellyfin/Komga/Navidrome/qBittorrent (esperam UID 1000) *e* o Postgres do PeerTube (espera UID 70) a cada restart. Já corrigido no `fileserver/samba.yml` (`USERID`/`GROUPID` fixados em 1000, e o compartilhamento `Config` não inclui mais `peertube/postgres`/`peertube/redis`). Se ainda estiver em uma versão antiga do repositório, `git pull` e recrie o Samba:
 ```bash
@@ -484,6 +494,7 @@ git pull
 docker compose up -d --force-recreate samba
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 70:70 /mnt/config/peertube/postgres
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 docker compose restart
 ```
 
@@ -513,6 +524,7 @@ sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 # Postgres do PeerTube usa UID/GID 70, não 1000 - reaplique por cima:
 sudo chown -R 70:70 /mnt/config/peertube/postgres
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 ```
 
 ```powershell

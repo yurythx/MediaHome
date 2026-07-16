@@ -37,6 +37,7 @@ sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 # O Postgres do PeerTube roda com usuário interno próprio (UID/GID 70, não
 # 1000) - sem isso ele não consegue abrir os próprios arquivos de banco
 sudo chown -R 70:70 /mnt/config/peertube/postgres
+sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 ```
 
 ### Discos locais (ext4) — montagem automática via fstab

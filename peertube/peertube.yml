@@ -55,6 +55,11 @@ services:
     image: chocobozzz/peertube:v8.2.2
     container_name: peertube
     restart: unless-stopped
+    # ATENÇÃO: esta imagem roda com usuário interno próprio UID/GID 999 (não
+    # PUID/PGID=1000, nem 70 como o Postgres). Os diretórios .../peertube/data
+    # e .../peertube/config precisam ser "chown 999:999", não 1000:1000 - um
+    # chown -R 1000:1000 recursivo em /mnt/config vai quebrar upload de vídeo
+    # ("EACCES: permission denied" em /data/tmp/resumable-uploads). Veja README.md.
     logging:
       driver: json-file
       options:
