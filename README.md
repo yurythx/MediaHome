@@ -153,14 +153,23 @@ docker compose logs jellyfin --tail 50
 > ⚠️ **IMPORTANTE**: `PEERTUBE_HOSTNAME` (no `.env`) é definitivo após o primeiro `docker compose up` — o PeerTube não suporta trocar de domínio depois sem apagar o banco (`/mnt/config/peertube/postgres`) e recomeçar do zero. Decida o domínio final antes de subir este serviço pela primeira vez.
 
 ##### Enviar vários clipes de uma vez (sem arrastar um por um na web)
-O PeerTube **não** escaneia pastas automaticamente como o Jellyfin — cada vídeo precisa ser enviado explicitamente. Para enviar vários que já estão em `/mnt/dados`, `/mnt/dados2` ou `/mnt/externo` sem baixar no seu PC antes, instale o `peertube-cli` **no próprio servidor Ubuntu** (ele já tem acesso nativo a esses discos, sem precisar de nada dentro do container):
+O PeerTube **não** escaneia pastas automaticamente como o Jellyfin — cada vídeo precisa ser enviado explicitamente, um a um, através da API. Pra não fazer isso manualmente na interface web, use `peertube-cli` (roda **no próprio servidor Ubuntu**, que já tem acesso nativo a `/mnt/dados`, `/mnt/dados2` e `/mnt/externo`, sem precisar de nada dentro do container):
+
 ```bash
-# No servidor Ubuntu (precisa de Node.js >= 22)
+# 1. Instalar o peertube-cli (uma vez só, precisa de Node.js >= 22)
 sudo npm install -g @peertube/peertube-cli
 
+# 2. Salvar as credenciais (uma vez só - fica salvo, não precisa repetir)
 peertube-cli auth add -u https://SEU_PEERTUBE_HOSTNAME -U root --password 'sua_senha'
-peertube-cli upload /mnt/dados/Filmes/clipe.mp4
+
+# 3a. Enviar um vídeo específico
+peertube-cli upload -f /mnt/dados/Filmes/clipe.mp4 -n "Nome do vídeo" -P 2
+
+# 3b. Ou enviar TODOS os vídeos de uma pasta de uma vez, com o script incluído no repositório:
+cd /home/suporte/MediaHome
+./peertube/bulk-upload.sh "/mnt/dados/Series/Ninja Kamui"
 ```
+`-P 2` = privacidade "Não listado" (recomendado para uso pessoal — veja o aviso sobre federação/ActivityPub mais abaixo). Use `-P 1` para Público ou `-P 3` para Privado. O script `bulk-upload.sh` varre a pasta inteira (`.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`), envia cada arquivo com `--no-wait-transcoding` (não trava esperando cada vídeo terminar de transcodificar antes de mandar o próximo) e grava um log dos que falharem.
 
 ## 🔧 Gerenciamento da Stack
 
@@ -672,7 +681,8 @@ MediaHome/
 ├── qbittorrent/
 │   └── qbittorrent.yml        # Serviço qBittorrent independente
 ├── peertube/
-│   └── peertube.yml           # PeerTube + Postgres + Redis (plataforma de vídeos)
+│   ├── peertube.yml           # PeerTube + Postgres + Redis (plataforma de vídeos)
+│   └── bulk-upload.sh         # Envia em massa uma pasta inteira via peertube-cli
 └── backup/
     └── backup.yml             # Desativado (mantido apenas para referência)
 ```

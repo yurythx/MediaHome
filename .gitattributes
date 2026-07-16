@@ -1,0 +1,3 @@
+# Scripts de shell precisam de LF (não CRLF) para rodar no Linux,
+# independente do sistema operacional de quem commitar.
+*.sh text eol=lf
