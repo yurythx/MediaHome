@@ -132,7 +132,7 @@ docker compose logs jellyfin --tail 50
   - `Dados` → `/mnt/dados`
   - `Dados2` → `/mnt/dados2`
   - `Externo` → `/mnt/externo`
-  - `Config` → `/mnt/config`
+  - `Config` → configs individuais de cada serviço (**exceto** o banco de dados do PeerTube, que não é compartilhado de propósito - veja aviso abaixo)
 
 > ⚠️ **IMPORTANTE**: Use uma senha forte em `SAMBA_PASSWORD` e nunca commite o arquivo `.env`.
 
@@ -470,11 +470,21 @@ docker compose logs peertube-postgres --tail 50
 Se você errou o valor de `PEERTUBE_HOSTNAME` no primeiro `up`, não dá para só editar o `.env` e reiniciar — é preciso apagar `/mnt/config/peertube/postgres` (perde os dados do PeerTube) e subir de novo com o valor correto.
 
 #### PeerTube sobe mas todo acesso dá erro 500 ("could not open file ... Permission denied")
-Se `docker compose logs peertube` mostrar algo como `SequelizeConnectionError: could not open file "base/..." Permission denied` com `"routine": "mdopenfork"`, é permissão de arquivo do Postgres — provavelmente rodou `chown -R 1000:1000 /mnt/config` depois que o Postgres já tinha inicializado o banco. Esse Postgres roda com usuário interno **UID/GID 70**, não 1000. Corrija sem perder dados:
+Se `docker compose logs peertube` mostrar algo como `SequelizeConnectionError: could not open file "base/..." Permission denied` com `"routine": "mdopenfork"`, é permissão de arquivo do Postgres. Esse Postgres roda com usuário interno **UID/GID 70**, não 1000. Corrija sem perder dados:
 ```bash
 docker compose stop peertube peertube-postgres
 sudo chown -R 70:70 /mnt/config/peertube/postgres
 docker compose start peertube-postgres peertube
+```
+
+#### Permissões de `/mnt/config` "voltam sozinhas" para outro dono após reiniciar os containers
+Causa raiz real encontrada em produção: a imagem `dperson/samba` (usada no serviço `samba`), sem as variáveis `USERID`/`GROUPID` explícitas, cria seu usuário interno com **UID/GID 100 por padrão** e re-chowna tudo que ela compartilha toda vez que o container sobe — e como ela montava a raiz de `/mnt/config` inteira, isso quebrava Jellyfin/Komga/Navidrome/qBittorrent (esperam UID 1000) *e* o Postgres do PeerTube (espera UID 70) a cada restart. Já corrigido no `fileserver/samba.yml` (`USERID`/`GROUPID` fixados em 1000, e o compartilhamento `Config` não inclui mais `peertube/postgres`/`peertube/redis`). Se ainda estiver em uma versão antiga do repositório, `git pull` e recrie o Samba:
+```bash
+git pull
+docker compose up -d --force-recreate samba
+sudo chown -R 1000:1000 /mnt/config
+sudo chown -R 70:70 /mnt/config/peertube/postgres
+docker compose restart
 ```
 
 #### Disco cheio / log do PeerTube gigante (dezenas de GB)

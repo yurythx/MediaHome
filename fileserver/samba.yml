@@ -11,6 +11,13 @@
 # (smbclient -L localhost) — visível em "docker ps". Pode falhar se o
 # compartilhamento anônimo estiver desabilitado; isso é comportamento da
 # imagem, não deste arquivo.
+#
+# USERID/GROUPID são NECESSÁRIOS: sem eles, o dperson/samba cria seu usuário
+# interno "smbuser" com UID/GID 100 por padrão e re-chowna os compartilhamentos
+# (Dados, Dados2, Externo, Config) pra esse UID toda vez que o container sobe
+# - já causou um bug real em produção (permissão "revertendo sozinha" após
+# reiniciar os containers, quebrando qBittorrent/Jellyfin/etc e até o Postgres
+# do PeerTube). Ver https://github.com/dperson/samba/issues/114
 
 services:
   samba:
@@ -24,13 +31,25 @@ services:
         max-file: "3"
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
+      - USERID=${PUID:-1000}
+      - GROUPID=${PGID:-1000}
       - USER=${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}
     volumes:
       # Compartilhamentos
       - ${MEDIA_PATH_1:-/mnt/dados}:/dados
       - ${MEDIA_PATH_2:-/mnt/dados2}:/dados2
       - ${MEDIA_PATH_EXT:-/mnt/externo}:/externo
-      - ${CONFIG_PATH:-/mnt/config}:/config
+      # Config por pasta individual, NÃO a raiz de /mnt/config - propositalmente
+      # exclui peertube/postgres e peertube/redis: o Postgres roda com UID 70
+      # (não 1000) e não pode ser tocado pelo chown do Samba, além de ser uma
+      # péssima ideia expor arquivos de um banco de dados ativo via rede
+      - ${CONFIG_PATH:-/mnt/config}/jellyfin:/config/jellyfin
+      - ${CONFIG_PATH:-/mnt/config}/komga:/config/komga
+      - ${CONFIG_PATH:-/mnt/config}/navidrome:/config/navidrome
+      - ${CONFIG_PATH:-/mnt/config}/portainer:/config/portainer
+      - ${CONFIG_PATH:-/mnt/config}/qbittorrent:/config/qbittorrent
+      - ${CONFIG_PATH:-/mnt/config}/peertube/data:/config/peertube-data
+      - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config/peertube-config
     ports:
       - "${SAMBA_PORT:-445}:445"
     command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Externo;/externo;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}" -p'
