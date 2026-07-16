@@ -56,10 +56,14 @@ services:
     container_name: peertube
     restart: unless-stopped
     # ATENÇÃO: esta imagem roda com usuário interno próprio UID/GID 999 (não
-    # PUID/PGID=1000, nem 70 como o Postgres). Os diretórios .../peertube/data
-    # e .../peertube/config precisam ser "chown 999:999", não 1000:1000 - um
-    # chown -R 1000:1000 recursivo em /mnt/config vai quebrar upload de vídeo
-    # ("EACCES: permission denied" em /data/tmp/resumable-uploads). Veja README.md.
+    # PUID/PGID=1000, nem 70 como o Postgres). O diretório de dados abaixo
+    # (MEDIA_PATH_1/peertube) e .../peertube/config precisam ser "chown
+    # 999:999", não 1000:1000 - senão o upload de vídeo falha com "EACCES:
+    # permission denied" em /data/tmp/resumable-uploads. Veja README.md.
+    #
+    # O volume de dados (vídeos em si) fica em MEDIA_PATH_1 (não em
+    # CONFIG_PATH) de propósito: são arquivos grandes, ficam melhor no disco
+    # de mídia grande do que competindo por espaço com o disco de config/SSD.
     logging:
       driver: json-file
       options:
@@ -91,7 +95,7 @@ services:
       # se os logs de IP do PeerTube parecerem errados e ajuste aqui)
       - 'PEERTUBE_TRUST_PROXY=["127.0.0.1", "loopback", "172.16.0.0/12"]'
     volumes:
-      - ${CONFIG_PATH:-/mnt/config}/peertube/data:/data
+      - ${MEDIA_PATH_1:-/mnt/dados}/peertube:/data
       - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config
       # Discos de mídia (somente leitura). O PeerTube NÃO escaneia essas
       # pastas automaticamente (ele não é um leitor de biblioteca como o

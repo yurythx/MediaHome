@@ -31,13 +31,16 @@ sudo mkdir -p /mnt/dados/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/dados2/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/externo /mnt/backup
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
-sudo mkdir -p /mnt/config/peertube/{data,config,postgres,redis}
+sudo mkdir -p /mnt/config/peertube/{config,postgres,redis}
+sudo mkdir -p /mnt/dados/peertube
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 # O Postgres do PeerTube roda com usuário interno próprio (UID/GID 70, não
 # 1000) - sem isso ele não consegue abrir os próprios arquivos de banco
 sudo chown -R 70:70 /mnt/config/peertube/postgres
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
+# O app do PeerTube roda com UID/GID 999 - vídeos ficam no disco de mídia,
+# não no de config
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
 ```
 
 ### Discos locais (ext4) — montagem automática via fstab

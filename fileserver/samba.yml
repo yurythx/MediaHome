@@ -42,13 +42,14 @@ services:
       # Config por pasta individual, NÃO a raiz de /mnt/config - propositalmente
       # exclui peertube/postgres e peertube/redis: o Postgres roda com UID 70
       # (não 1000) e não pode ser tocado pelo chown do Samba, além de ser uma
-      # péssima ideia expor arquivos de um banco de dados ativo via rede
+      # péssima ideia expor arquivos de um banco de dados ativo via rede.
+      # Os vídeos do PeerTube (MEDIA_PATH_1/peertube) já ficam visíveis pelo
+      # compartilhamento "Dados" acima - não precisam de mount separado aqui.
       - ${CONFIG_PATH:-/mnt/config}/jellyfin:/config/jellyfin
       - ${CONFIG_PATH:-/mnt/config}/komga:/config/komga
       - ${CONFIG_PATH:-/mnt/config}/navidrome:/config/navidrome
       - ${CONFIG_PATH:-/mnt/config}/portainer:/config/portainer
       - ${CONFIG_PATH:-/mnt/config}/qbittorrent:/config/qbittorrent
-      - ${CONFIG_PATH:-/mnt/config}/peertube/data:/config/peertube-data
       - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config/peertube-config
     ports:
       - "${SAMBA_PORT:-445}:445"

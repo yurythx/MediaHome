@@ -37,11 +37,11 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\komga"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\navidrome"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\portainer"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\qbittorrent"
-New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\data"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\config"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\postgres"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\peertube\redis"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados\peertube"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados2"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\externo"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
@@ -50,13 +50,16 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
 ```bash
 # Linux/Ubuntu
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
-sudo mkdir -p /mnt/config/peertube/{data,config,postgres,redis}
+sudo mkdir -p /mnt/config/peertube/{config,postgres,redis}
 sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
+sudo mkdir -p /mnt/dados/peertube
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 # O Postgres do PeerTube roda com um usuário interno próprio (UID/GID 70,
 # não 1000) - sem isso, ele não consegue abrir os próprios arquivos de banco
 sudo chown -R 70:70 /mnt/config/peertube/postgres
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
+# O app do PeerTube roda com UID/GID 999 (também usuário interno próprio) -
+# os vídeos ficam em /mnt/dados/peertube (disco de mídia, não o de config)
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
 ```
 
 ### Instalação e Execução
@@ -217,14 +220,16 @@ Os dados são persistidos em volumes locais Docker:
 - `mediahome_portainer_data` - Dados do Portainer
 
 ### Bind Mounts (Dados de Mídia)
-- `/mnt/dados` → Disco principal de mídia
+- `/mnt/dados` → Disco principal de mídia (inclui `/mnt/dados/peertube`, onde ficam os vídeos enviados ao PeerTube - de propósito no disco de mídia, não no de config)
 - `/mnt/dados2` → Disco secundário de mídia
-- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent` e PeerTube em `/mnt/config/peertube/{data,config,postgres,redis}`)
+- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent` e PeerTube em `/mnt/config/peertube/{config,postgres,redis}`)
 - `/mnt/backup` → Local para salvar os backups manuais
 
 ## 💾 Sistema de Backup Manual
 
 Como os backups automáticos constantes ocupavam muito espaço em disco, o contêiner de backup automático foi removido. Os backups agora podem ser executados manualmente no host quando você preferir.
+
+> ⚠️ **O backup abaixo cobre só `/mnt/config`** (configurações). Os vídeos do PeerTube ficam em `/mnt/dados/peertube` — inclua esse caminho no seu backup do disco de mídia, não no comando de `/mnt/config` a seguir.
 
 > ⚠️ **PeerTube usa banco de dados (Postgres)**: copiar `/mnt/config/peertube/postgres` com o container rodando pode gerar um backup corrompido/inconsistente (cópia "a quente" dos arquivos do banco). Pare o Postgres do PeerTube antes de rodar o `tar` abaixo:
 > ```bash
@@ -262,7 +267,7 @@ tar -xzf C:\MediaHome\backup\nome_do_arquivo.tar.gz -C C:\MediaHome\config\
 # 3. Ajustar permissões (apenas Linux)
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 70:70 /mnt/config/peertube/postgres  # Postgres usa UID/GID 70, não 1000
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 
 # 4. Reiniciar serviços
 docker compose up -d
@@ -489,10 +494,10 @@ docker compose start peertube-postgres peertube
 ```
 
 #### Upload de vídeo no PeerTube falha com erro 500 ("EACCES: permission denied" em `/data/tmp/resumable-uploads`)
-Mesma família de problema, mas no container `peertube` (não no Postgres): a imagem roda com usuário interno **UID/GID 999**, diferente do 1000 usado pelos outros serviços e do 70 do Postgres. Se `/mnt/config/peertube/data` ou `/mnt/config/peertube/config` ficarem com outro dono (ex: depois de um `chown -R 1000:1000 /mnt/config` genérico), o upload falha assim que tenta gravar o arquivo temporário. Corrija:
+Mesma família de problema, mas no container `peertube` (não no Postgres): a imagem roda com usuário interno **UID/GID 999**, diferente do 1000 usado pelos outros serviços e do 70 do Postgres. Se `/mnt/dados/peertube` ou `/mnt/config/peertube/config` ficarem com outro dono (ex: depois de um `chown -R 1000:1000 /mnt/config` genérico), o upload falha assim que tenta gravar o arquivo temporário. Corrija:
 ```bash
 docker compose stop peertube
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
 docker compose start peertube
 ```
 
@@ -503,7 +508,7 @@ git pull
 docker compose up -d --force-recreate samba
 sudo chown -R 1000:1000 /mnt/config
 sudo chown -R 70:70 /mnt/config/peertube/postgres
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 docker compose restart
 ```
 
@@ -533,7 +538,7 @@ sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup
 # Postgres do PeerTube usa UID/GID 70, não 1000 - reaplique por cima:
 sudo chown -R 70:70 /mnt/config/peertube/postgres
-sudo chown -R 999:999 /mnt/config/peertube/data /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
+sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config  # PeerTube (app) usa UID/GID 999
 ```
 
 ```powershell
