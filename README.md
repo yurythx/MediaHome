@@ -159,7 +159,13 @@ docker compose logs jellyfin --tail 50
 O PeerTube **não** escaneia pastas automaticamente como o Jellyfin — cada vídeo precisa ser enviado explicitamente, um a um, através da API. Pra não fazer isso manualmente na interface web, use `peertube-cli` (roda **no próprio servidor Ubuntu**, que já tem acesso nativo a `/mnt/dados`, `/mnt/dados2` e `/mnt/externo`, sem precisar de nada dentro do container):
 
 ```bash
-# 1. Instalar o peertube-cli (uma vez só, precisa de Node.js >= 22)
+# 0. Conferir se o Node.js >= 22 já está instalado (requisito do peertube-cli)
+node --version
+# Se não tiver Node.js ou a versão for menor que 22, instale com:
+#   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+#   sudo apt install -y nodejs
+
+# 1. Instalar o peertube-cli (uma vez só)
 sudo npm install -g @peertube/peertube-cli
 
 # 2. Salvar as credenciais (uma vez só - fica salvo, não precisa repetir)
