@@ -78,6 +78,12 @@ services:
       # bruto de comandos internos do Redis/Bull (fila de transcodificação)
       # nos logs, o que já encheu 72GB de disco em ~1 dia numa instância real.
       - PEERTUBE_LOG_LEVEL=${PEERTUBE_LOG_LEVEL:-info}
+      # Limite padrão da API é 50 requisições/10s - o upload "resumable" usa
+      # várias requisições por vídeo só, então um upload em massa (mesmo
+      # autenticado como admin) estoura isso rápido. Aumentado pra um valor
+      # generoso porque é um servidor pessoal de um usuário só, não uma
+      # instância pública multiusuário.
+      - PEERTUBE_RATES_LIMIT_API_MAX=${PEERTUBE_RATES_LIMIT_API_MAX:-1000}
       - PEERTUBE_DB_USERNAME=${PEERTUBE_DB_USERNAME:-peertube}
       - "PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}"
       - PEERTUBE_DB_SSL=false

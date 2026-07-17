@@ -182,10 +182,11 @@ cd /home/suporte/MediaHome
 
 > 💡 **Roda de novo sem medo de duplicar**: todo arquivo enviado com sucesso é registrado em `enviados_peertube.log` (fica salvo na pasta onde você roda o script). Se você rodar `bulk-upload.sh` de novo na mesma pasta - por exemplo, depois de adicionar vídeos novos - ele pula automaticamente quem já foi enviado antes, sem duplicar.
 
-> ⚠️ **Rate limit da API**: o PeerTube limita a API geral a 50 requisições/10s por padrão, e o upload "resumable" usa várias requisições por vídeo. Enviar muitos vídeos seguidos rápido demais dá erro `429 Too Many Requests` — e depois de um 429, os envios seguintes tendem a falhar em cascata também. O script já espera alguns segundos entre cada envio pra evitar isso (ajustável na variável `SLEEP_SEGUNDOS` no topo do arquivo). Se mesmo assim algum falhar, reenvie **só os que falharam** (sem duplicar os que já deram certo):
+> ⚠️ **Rate limit da API**: o PeerTube limita a API geral a 50 requisições/10s por padrão, e o upload "resumable" usa várias requisições por vídeo — em teoria isso não deveria valer pra o usuário `root`/admin autenticado, mas na prática um upload em massa consegue esbarrar nisso mesmo assim. Já aumentamos o limite via `PEERTUBE_RATES_LIMIT_API_MAX` no `.env` (padrão 1000, bem acima do 50 original) porque este é um servidor pessoal de um usuário só, não uma instância pública multiusuário. O script também espera alguns segundos entre cada envio como camada extra de segurança (ajustável na variável `SLEEP_SEGUNDOS` no topo do arquivo) e detecta um 429 pra pausar mais ainda se acontecer. Se mesmo assim algum falhar, reenvie **só os que falharam** (sem duplicar os que já deram certo):
 > ```bash
 > ./peertube/bulk-upload.sh --retry falhas_upload_20260716_194854.log
 > ```
+> Se estiver rodando uma instância já configurada antes desta mudança, edite o `.env` e rode `docker compose up -d --force-recreate peertube` para aplicar o novo limite.
 
 ## 🔧 Gerenciamento da Stack
 
