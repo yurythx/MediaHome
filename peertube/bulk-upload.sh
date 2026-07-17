@@ -18,10 +18,16 @@
 # tomam erro 429 "Too Many Requests" - e depois de um 429, TODOS os envios
 # seguintes tendem a falhar em cascata também. Por isso o script espera
 # SLEEP_SEGUNDOS entre cada envio, e pausa mais ainda se detectar um 429.
+#
+# Todo arquivo enviado com sucesso é registrado em ENVIADOS_LOG (persiste
+# entre execuções, não é apagado). Rodar o script de novo na mesma pasta
+# pula automaticamente quem já foi enviado - não reenvia/duplica nada.
 
 set -uo pipefail
 
 SLEEP_SEGUNDOS=6
+ENVIADOS_LOG="enviados_peertube.log"
+touch "$ENVIADOS_LOG"
 
 if [ "${1:-}" = "--retry" ]; then
   LOG_ENTRADA="${2:-}"
@@ -50,9 +56,17 @@ fi
 LOG_FALHAS="falhas_upload_$(date +%Y%m%d_%H%M%S).log"
 total=0
 ok=0
+pulados=0
 
 enviar_arquivo() {
   local file="$1"
+
+  if grep -Fxq "$file" "$ENVIADOS_LOG"; then
+    pulados=$((pulados + 1))
+    echo "-- Já enviado antes, pulando: $(basename "$file")"
+    return
+  fi
+
   total=$((total + 1))
   local name
   name=$(basename "$file")
@@ -67,6 +81,7 @@ enviar_arquivo() {
 
   if [ $status -eq 0 ]; then
     ok=$((ok + 1))
+    echo "$file" >> "$ENVIADOS_LOG"
   else
     echo "$file" >> "$LOG_FALHAS"
     echo "FALHOU (registrado em $LOG_FALHAS): $file"
@@ -93,7 +108,7 @@ else
 fi
 
 echo ""
-echo "=== Concluído: $ok/$total enviados com sucesso ==="
+echo "=== Concluído: $ok/$total enviados com sucesso ($pulados já enviados antes, pulados) ==="
 if [ -f "$LOG_FALHAS" ]; then
   echo "Falhas registradas em: $LOG_FALHAS"
   echo "Para tentar de novo só os que falharam: $0 --retry $LOG_FALHAS"
