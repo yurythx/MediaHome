@@ -188,6 +188,8 @@ cd /home/suporte/MediaHome
 > ```
 > Se estiver rodando uma instância já configurada antes desta mudança, edite o `.env` e rode `docker compose up -d --force-recreate peertube` para aplicar o novo limite.
 
+> ⚠️ **Vídeos grandes falham com "user quota is exceeded or video file is too big"**: essa é a mensagem genérica que o `peertube-cli` mostra pra **qualquer** erro `413 Payload Too Large` — não é necessariamente sobre cota. Se você expõe o PeerTube via **Cloudflare Tunnel**, o Cloudflare tem um limite fixo de ~100MB por requisição, e o upload "resumable" manda o vídeo em pedaços (chunks) cujo tamanho o PeerTube calcula automaticamente - podendo passar de 100MB pra arquivos grandes. `PEERTUBE_UPLOAD_CHUNK_SIZE` no `.env` fixa esse tamanho bem abaixo do limite (padrão `50MB`). Depois de mudar, recrie o container: `docker compose up -d --force-recreate peertube`.
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos

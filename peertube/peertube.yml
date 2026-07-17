@@ -84,6 +84,14 @@ services:
       # generoso porque é um servidor pessoal de um usuário só, não uma
       # instância pública multiusuário.
       - PEERTUBE_RATES_LIMIT_API_MAX=${PEERTUBE_RATES_LIMIT_API_MAX:-1000}
+      # Tamanho do "pedaço" (chunk) do upload resumable. Sem isso, o PeerTube
+      # calcula automaticamente um valor maior pra arquivos grandes - e como
+      # a stack é exposta via Cloudflare Tunnel (limite fixo de ~100MB por
+      # requisição), um chunk grande demais estoura esse limite e o upload
+      # falha com "413 Payload Too Large" (peertube-cli mostra isso como
+      # "user quota is exceeded or video file is too big", mensagem genérica
+      # dele para qualquer 413). Fixado bem abaixo de 100MB por segurança.
+      - 'PEERTUBE_CLIENT_VIDEOS_RESUMABLE_UPLOAD_MAX_CHUNK_SIZE="${PEERTUBE_UPLOAD_CHUNK_SIZE:-50MB}"'
       - PEERTUBE_DB_USERNAME=${PEERTUBE_DB_USERNAME:-peertube}
       - "PEERTUBE_DB_PASSWORD=${PEERTUBE_DB_PASSWORD:?defina PEERTUBE_DB_PASSWORD no .env}"
       - PEERTUBE_DB_SSL=false
