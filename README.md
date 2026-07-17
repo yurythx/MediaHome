@@ -180,6 +180,11 @@ cd /home/suporte/MediaHome
 ```
 `-P 2` = privacidade "Não listado" (recomendado para uso pessoal — veja o aviso sobre federação/ActivityPub mais abaixo). Use `-P 1` para Público ou `-P 3` para Privado. O script `bulk-upload.sh` varre a pasta inteira (`.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`), envia cada arquivo com `--no-wait-transcoding` (não trava esperando cada vídeo terminar de transcodificar antes de mandar o próximo) e grava um log dos que falharem.
 
+> ⚠️ **Rate limit da API**: o PeerTube limita a API geral a 50 requisições/10s por padrão, e o upload "resumable" usa várias requisições por vídeo. Enviar muitos vídeos seguidos rápido demais dá erro `429 Too Many Requests` — e depois de um 429, os envios seguintes tendem a falhar em cascata também. O script já espera alguns segundos entre cada envio pra evitar isso (ajustável na variável `SLEEP_SEGUNDOS` no topo do arquivo). Se mesmo assim algum falhar, reenvie **só os que falharam** (sem duplicar os que já deram certo):
+> ```bash
+> ./peertube/bulk-upload.sh --retry falhas_upload_20260716_194854.log
+> ```
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos
