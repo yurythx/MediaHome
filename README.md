@@ -149,7 +149,7 @@ docker compose logs jellyfin --tail 50
   - `Dados` → `/mnt/dados`
   - `Dados2` → `/mnt/dados2`
   - `Externo` → `/mnt/externo`
-  - `Config` → configs individuais de cada serviço (**exceto** o banco de dados do PeerTube, que não é compartilhado de propósito - veja aviso abaixo)
+  - `Config` → configs individuais de cada serviço (**exceto** os bancos de dados do PeerTube/ytdl-material e o cofre do Vaultwarden, que não são compartilhados de propósito - veja aviso abaixo)
 
 > ⚠️ **IMPORTANTE**: Use uma senha forte em `SAMBA_PASSWORD` e nunca commite o arquivo `.env`.
 
@@ -786,10 +786,8 @@ MediaHome/
 │   └── bulk-upload.sh         # Envia em massa uma pasta inteira via peertube-cli
 ├── ytdl-material/
 │   └── ytdl-material.yml      # ytdl-material + Postgres (downloader de vídeos)
-├── vaultwarden/
-│   └── vaultwarden.yml        # Vaultwarden (gerenciador de senhas)
-└── backup/
-    └── backup.yml             # Desativado (mantido apenas para referência)
+└── vaultwarden/
+    └── vaultwarden.yml        # Vaultwarden (gerenciador de senhas)
 ```
 
 ## 🎯 Casos de Uso

@@ -40,10 +40,14 @@ services:
       - ${MEDIA_PATH_2:-/mnt/dados2}:/dados2
       - ${MEDIA_PATH_EXT:-/mnt/externo}:/externo
       # Config por pasta individual, NÃO a raiz de /mnt/config - propositalmente
-      # exclui peertube/postgres e peertube/redis: o Postgres roda com UID 70
-      # (não 1000) e não pode ser tocado pelo chown do Samba, além de ser uma
-      # péssima ideia expor arquivos de um banco de dados ativo via rede.
-      # Os vídeos do PeerTube (MEDIA_PATH_1/peertube) já ficam visíveis pelo
+      # exclui peertube/postgres, peertube/redis e ytdl-material/postgres: esses
+      # bancos rodam com UID 70 (não 1000) e não podem ser tocados pelo chown
+      # do Samba, além de ser uma péssima ideia expor arquivos de um banco de
+      # dados ativo via rede. Vaultwarden também fica de fora de propósito -
+      # é o cofre de senhas, não deve ficar exposto por um protocolo de rede
+      # sem criptografia por padrão como o SMB.
+      # Os vídeos do PeerTube (MEDIA_PATH_1/peertube) e os downloads do
+      # ytdl-material (MEDIA_PATH_1/ytdl) já ficam visíveis pelo
       # compartilhamento "Dados" acima - não precisam de mount separado aqui.
       - ${CONFIG_PATH:-/mnt/config}/jellyfin:/config/jellyfin
       - ${CONFIG_PATH:-/mnt/config}/komga:/config/komga
@@ -51,6 +55,9 @@ services:
       - ${CONFIG_PATH:-/mnt/config}/portainer:/config/portainer
       - ${CONFIG_PATH:-/mnt/config}/qbittorrent:/config/qbittorrent
       - ${CONFIG_PATH:-/mnt/config}/peertube/config:/config/peertube-config
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/appdata:/config/ytdl-material/appdata
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/subscriptions:/config/ytdl-material/subscriptions
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/users:/config/ytdl-material/users
     ports:
       - "${SAMBA_PORT:-445}:445"
     command: '-s "Dados;/dados;yes;no;no;all;none" -s "Dados2;/dados2;yes;no;no;all;none" -s "Externo;/externo;yes;no;no;all;none" -s "Config;/config;yes;no;no;all;none" -u "${SAMBA_USER:?defina SAMBA_USER no .env};${SAMBA_PASSWORD:?defina SAMBA_PASSWORD no .env}" -p'
