@@ -32,6 +32,9 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
+
+> 💡 **No Linux/Ubuntu**, os comandos `mkdir`/`chown` abaixo podem ser automatizados com `sudo ./setup.sh` (lê os caminhos e `PUID`/`PGID` direto do seu `.env`, é idempotente - pode rodar de novo a qualquer momento sem risco). No Windows use o bloco `PowerShell` abaixo manualmente.
+
 ```powershell
 # Windows (PowerShell como Administrador)
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\jellyfin"
@@ -759,6 +762,7 @@ Para colocar a stack em produção num servidor Ubuntu com aaPanel — preparo d
 ```
 MediaHome/
 ├── docker-compose.yml          # Orquestração principal
+├── setup.sh                     # Automatiza mkdir+chown de toda a stack (sudo ./setup.sh)
 ├── .env.example                 # Template de variáveis (copie para .env)
 ├── .gitignore                   # Garante que .env não seja versionado
 ├── .github/workflows/

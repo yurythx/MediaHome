@@ -26,6 +26,8 @@ docker compose version
 ## 2. Preparar Discos e Diretórios
 
 ### Estrutura de diretórios
+> 💡 Os comandos abaixo têm uma versão automatizada (`sudo ./setup.sh`), mas ela só pode rodar **depois** de clonar o repositório e configurar o `.env` (passo 4) — o script lê `PUID`/`PGID`/caminhos de lá. Se for seguir a ordem deste guia (discos antes de clonar), use os comandos manuais abaixo agora; se preferir, pule para o passo 4, clone e configure o `.env` primeiro, e volte aqui para rodar `sudo ./setup.sh` no lugar deste bloco.
+
 ```bash
 sudo mkdir -p /mnt/dados/{filmes,series,musicas,quadrinhos}
 sudo mkdir -p /mnt/dados2/{filmes,series,musicas,quadrinhos}
@@ -115,6 +117,10 @@ cd MediaHome
 cp .env.example .env
 nano .env   # defina SAMBA_PASSWORD, PEERTUBE_HOSTNAME, PEERTUBE_ADMIN_EMAIL,
             # PEERTUBE_SECRET e PEERTUBE_DB_PASSWORD, e ajuste HOST_IP/caminhos
+
+# Se ainda não rodou os mkdir/chown do passo 2 manualmente, rode agora
+# (idempotente - seguro rodar de novo mesmo se já tiver feito manualmente):
+sudo ./setup.sh
 
 docker compose up -d
 docker compose ps
