@@ -73,10 +73,34 @@ sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
 # via "user:"), então o chown -R 1000:1000 acima já cobre a pasta dele
 ```
 
+### Script de Setup Automatizado (`setup.sh`)
+
+O `setup.sh` (raiz do projeto) automatiza os dois blocos de comando acima — não precisa copiar/colar `mkdir`/`chown` manualmente no Linux.
+
+**O que ele faz:**
+1. Lê `PUID`, `PGID`, `CONFIG_PATH`, `MEDIA_PATH_1/2/EXT` e `BACKUP_PATH` direto do seu `.env`.
+2. Cria toda a árvore de diretórios da stack (config de cada serviço + pastas de mídia dos serviços que gravam arquivo, como PeerTube e ytdl-material).
+3. Aplica o dono/permissão correta em cada pasta, incluindo as três exceções de UID que a stack precisa (Postgres do PeerTube/ytdl-material em UID 70, app do PeerTube em UID 999, resto em `PUID:PGID`).
+
+**Como usar:**
+```bash
+cp .env.example .env
+nano .env        # preencha PUID/PGID/CONFIG_PATH/MEDIA_PATH_* (ou use os padrões)
+sudo ./setup.sh
+```
+
+**Requisitos:** rodar como root (`sudo`) porque faz `chown`, e ter um `.env` já existente na raiz do projeto (o script recusa rodar sem ele, com uma mensagem clara).
+
+**É seguro rodar de novo?** Sim — é idempotente. `mkdir -p` não recria o que já existe, e reaplicar o mesmo `chown` numa pasta que já está correta não tem efeito. Pode rodar `sudo ./setup.sh` a qualquer momento (por exemplo, depois de adicionar um serviço novo ou se restaurar um backup) sem medo de quebrar nada.
+
+**O que ele deliberadamente NÃO faz:**
+- Não edita o `.env` — senhas, tokens e domínios continuam sendo preenchidos manualmente por você.
+- Não roda `docker compose up -d` — depois do script, suba a stack manualmente (dá controle sobre quando os containers efetivamente iniciam).
+- Não faz `chown -R` na **raiz** dos discos de mídia (`MEDIA_PATH_1/2/EXT`) — só nas subpastas novas que pertencem a um serviço específico (`peertube/`, `ytdl/`). Em produção esses discos costumam ter terabytes de conteúdo já existente; recursar um `chown` ali toda vez que o script rodasse seria lento e desnecessário, já que o conteúdo já teria sido configurado corretamente na primeira vez.
+
 ### Instalação e Execução
 1. **Clone ou baixe o projeto**
-2. **Configure a estrutura de diretórios** (veja acima)
-3. **Configure as variáveis de ambiente**:
+2. **Configure as variáveis de ambiente**:
 ```bash
 cp .env.example .env
 # edite o .env: defina SAMBA_PASSWORD, PEERTUBE_HOSTNAME, PEERTUBE_ADMIN_EMAIL,
@@ -84,8 +108,11 @@ cp .env.example .env
 # conforme seu servidor. PEERTUBE_HOSTNAME é definitivo após o primeiro "up" - veja
 # a seção do PeerTube mais abaixo antes de decidir o valor.
 ```
+3. **Crie a estrutura de diretórios e ajuste as permissões**:
+   - **Linux/Ubuntu**: `sudo ./setup.sh` (automatiza tudo — detalhes na seção "Script de Setup Automatizado" logo acima)
+   - **Windows**: rode manualmente o bloco `PowerShell` da seção "Estrutura de Diretórios Obrigatória" mais acima
 4. **Execute a stack**:
-```powershell
+```bash
 docker compose up -d
 ```
 
@@ -451,6 +478,23 @@ sudo mount -t cifs //SEU_IP/Dados /mnt/dados_remoto \
 # Via Finder
 # Go → Connect to Server: smb://SEU_IP/Dados
 ```
+
+### Como funciona o ytdl-material (Downloader de Vídeos)
+
+[ytdl-material](https://github.com/voc0der/ytdl-material) (renomeado do antigo "YoutubeDL-Material") é uma interface web completa para o **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — o motor de download por trás dele, ativamente mantido e sucessor do antigo `youtube-dl`. Na prática: você cola um link, e por baixo dos panos é o yt-dlp quem faz o trabalho pesado de identificar o site, extrair os streams de vídeo/áudio disponíveis e baixá-los — o ytdl-material só entrega a interface web, fila de downloads, histórico e automações em volta disso.
+
+**Como funciona o download:**
+- Cole a URL de um vídeo (ou playlist inteira) na interface web e escolha baixar como **vídeo** (arquivo completo, ex: MP4, na maior qualidade disponível ou a que você escolher) ou só **áudio** (extrai e converte a trilha sonora, útil pra música/podcasts).
+- O download entra numa fila e roda em segundo plano — dá pra continuar navegando/adicionando outros links enquanto isso.
+- O arquivo final é salvo em `${MEDIA_PATH_1}/ytdl/video` ou `${MEDIA_PATH_1}/ytdl/audio` (mapeados para `/app/video` e `/app/audio` dentro do container) — já ficam visíveis também pelo compartilhamento Samba "Dados", já que estão dentro de `MEDIA_PATH_1`.
+
+**Subscriptions (assinaturas automáticas):** em vez de colar link por link, você pode cadastrar um canal ou playlist inteiros em **Subscriptions** — o ytdl-material passa a checar periodicamente por vídeos novos e baixá-los sozinho, sem precisar voltar na interface toda vez. Útil para acompanhar um canal específico sem abrir o YouTube.
+
+**Banco de dados:** diferente do modo padrão do projeto (que usa um arquivo JSON local), configuramos o `ytdl-material.yml` para usar o Postgres dedicado (`ytdl-postgres`, `ytdl_remote_db_type=postgres` no `.env`) — mais robusto contra corrupção de dados que um arquivo solto. Importante: o banco guarda só **metadados** (histórico de downloads, configuração de subscriptions, contas de usuário) — os vídeos/áudios em si são sempre arquivos comuns no disco de mídia, não ficam "dentro" do banco.
+
+**Múltiplos usuários:** o ytdl-material suporta mais de uma conta, cada uma com login próprio — crie a conta de administrador no primeiro acesso (veja "Primeiro Acesso" acima) e, se quiser, contas adicionais depois em **Admin → Users**.
+
+> ⚠️ Vale repetir o aviso legal: baixe só o que você tem direito de copiar. O yt-dlp funciona em streaming simples (HLS/DASH sem criptografia) — ele **não** quebra DRM real (Widevine/PlayReady) usado por plataformas de curso protegidas. Ver aviso completo na seção "Primeiro Acesso" acima e no topo do `ytdl-material/ytdl-material.yml`.
 
 ### Como funciona o Vaultwarden (Gerenciador de Senhas)
 
