@@ -168,10 +168,12 @@ node --version
 # 1. Instalar o peertube-cli (uma vez só)
 sudo npm install -g @peertube/peertube-cli
 
-# 2. Salvar as credenciais (uma vez só - fica salvo, não precisa repetir)
+# 2. Salvar as credenciais - DUAS entradas, uma pro domínio público (uso geral)
+#    e outra pro endereço local (usada pelo bulk-upload.sh, veja aviso abaixo)
 peertube-cli auth add -u https://SEU_PEERTUBE_HOSTNAME -U root --password 'sua_senha'
+peertube-cli auth add -u http://localhost:9000 -U root --password 'sua_senha'
 
-# 3a. Enviar um vídeo específico
+# 3a. Enviar um vídeo específico (pelo domínio público, arquivo pequeno)
 peertube-cli upload -f /mnt/dados/Filmes/clipe.mp4 -n "Nome do vídeo" -P 2
 
 # 3b. Ou enviar TODOS os vídeos de uma pasta de uma vez, com o script incluído no repositório:
@@ -180,9 +182,11 @@ cd /home/suporte/MediaHome
 ```
 `-P 2` = privacidade "Não listado" (recomendado para uso pessoal — veja o aviso sobre federação/ActivityPub mais abaixo). Use `-P 1` para Público ou `-P 3` para Privado. O script `bulk-upload.sh` varre a pasta inteira (`.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`), envia cada arquivo com `--no-wait-transcoding` (não trava esperando cada vídeo terminar de transcodificar antes de mandar o próximo) e grava um log dos que falharem.
 
+> ⚠️ **Vídeos grandes falhando com "user quota is exceeded or video file is too big"**: essa é a mensagem genérica que o `peertube-cli` mostra pra **qualquer** erro `413 Payload Too Large` - não é necessariamente sobre cota. O `peertube-cli upload` sempre manda o arquivo inteiro numa única requisição HTTP (não existe modo "resumable"/em pedaços nessa ferramenta, só na interface web). Se a stack for exposta via **Cloudflare Tunnel**, que tem limite fixo de ~100MB por requisição, vídeos grandes estouram esse limite. Por isso o `bulk-upload.sh` já aponta pro endereço **local** (`http://localhost:9000`, configurável via `PEERTUBE_LOCAL_URL`) em vez do domínio público — rodando no próprio servidor, isso contorna o Cloudflare completamente. Certifique-se de ter rodado o `auth add -u http://localhost:9000` do passo 2 antes de usar o script.
+
 > 💡 **Roda de novo sem medo de duplicar**: todo arquivo enviado com sucesso é registrado em `enviados_peertube.log` (fica salvo na pasta onde você roda o script). Se você rodar `bulk-upload.sh` de novo na mesma pasta - por exemplo, depois de adicionar vídeos novos - ele pula automaticamente quem já foi enviado antes, sem duplicar.
 
-> ⚠️ **Rate limit da API**: o PeerTube limita a API geral a 50 requisições/10s por padrão, e o upload "resumable" usa várias requisições por vídeo — em teoria isso não deveria valer pra o usuário `root`/admin autenticado, mas na prática um upload em massa consegue esbarrar nisso mesmo assim. Já aumentamos o limite via `PEERTUBE_RATES_LIMIT_API_MAX` no `.env` (padrão 1000, bem acima do 50 original) porque este é um servidor pessoal de um usuário só, não uma instância pública multiusuário. O script também espera alguns segundos entre cada envio como camada extra de segurança (ajustável na variável `SLEEP_SEGUNDOS` no topo do arquivo) e detecta um 429 pra pausar mais ainda se acontecer. Se mesmo assim algum falhar, reenvie **só os que falharam** (sem duplicar os que já deram certo):
+> ⚠️ **Rate limit da API**: o PeerTube limita a API geral a 50 requisições/10s por padrão — em teoria isso não deveria valer pra o usuário `root`/admin autenticado, mas na prática um upload em massa consegue esbarrar nisso mesmo assim. Já aumentamos o limite via `PEERTUBE_RATES_LIMIT_API_MAX` no `.env` (padrão 1000, bem acima do 50 original) porque este é um servidor pessoal de um usuário só, não uma instância pública multiusuário. O script também espera alguns segundos entre cada envio como camada extra de segurança (ajustável na variável `SLEEP_SEGUNDOS` no topo do arquivo) e detecta um 429 pra pausar mais ainda se acontecer. Se mesmo assim algum falhar, reenvie **só os que falharam** (sem duplicar os que já deram certo):
 > ```bash
 > ./peertube/bulk-upload.sh --retry falhas_upload_20260716_194854.log
 > ```

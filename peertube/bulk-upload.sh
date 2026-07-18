@@ -4,7 +4,8 @@
 #
 # PRÉ-REQUISITO (rodar uma vez só, no servidor, fora deste script):
 #   sudo npm install -g @peertube/peertube-cli
-#   peertube-cli auth add -u https://SEU_PEERTUBE_HOSTNAME -U root --password 'sua_senha'
+#   # Autenticação separada apontando pro endereço LOCAL (veja LOCAL_URL abaixo):
+#   peertube-cli auth add -u http://localhost:9000 -U root --password 'sua_senha'
 #
 # Uso:
 #   ./bulk-upload.sh <pasta> [privacy]
@@ -12,12 +13,20 @@
 #
 # privacy: 1=Público  2=Não listado (padrão)  3=Privado
 #
+# IMPORTANTE: o "peertube-cli upload" sempre manda o vídeo inteiro numa única
+# requisição HTTP (modo "legacy") - não existe flag pra usar o protocolo
+# resumable/em pedaços nessa ferramenta. Se a stack for exposta via Cloudflare
+# Tunnel (limite fixo de ~100MB por requisição), vídeos grandes falham com
+# "413 Payload Too Large" (o peertube-cli mostra isso como "user quota is
+# exceeded or video file is too big", mensagem genérica dele pra qualquer 413).
+# Por isso este script aponta pra LOCAL_URL (o endereço local do próprio
+# servidor, sem passar pelo Cloudflare) em vez do domínio público - ajuste se
+# não usar Cloudflare Tunnel ou se a porta for outra.
+#
 # O PeerTube limita a API geral a 50 requisições a cada 10s por padrão
-# (rates_limit.api no config). O upload usa o protocolo "resumable" (várias
-# requisições HTTP por vídeo só), então uploads em sequência rápida demais
-# tomam erro 429 "Too Many Requests" - e depois de um 429, TODOS os envios
-# seguintes tendem a falhar em cascata também. Por isso o script espera
-# SLEEP_SEGUNDOS entre cada envio, e pausa mais ainda se detectar um 429.
+# (rates_limit.api no config, já aumentado em peertube.yml). Mesmo assim,
+# o script espera SLEEP_SEGUNDOS entre cada envio como camada extra de
+# segurança, e pausa mais ainda se detectar um 429.
 #
 # Todo arquivo enviado com sucesso é registrado em ENVIADOS_LOG (persiste
 # entre execuções, não é apagado). Rodar o script de novo na mesma pasta
@@ -26,6 +35,7 @@
 set -uo pipefail
 
 SLEEP_SEGUNDOS=6
+LOCAL_URL="${PEERTUBE_LOCAL_URL:-http://localhost:9000}"
 ENVIADOS_LOG="enviados_peertube.log"
 touch "$ENVIADOS_LOG"
 
@@ -75,7 +85,7 @@ enviar_arquivo() {
   echo ""
   echo "== [$total] Enviando: $name =="
   local saida
-  saida=$(peertube-cli upload -f "$file" -n "$name" -P "$PRIVACY" --no-wait-transcoding 2>&1)
+  saida=$(peertube-cli upload -u "$LOCAL_URL" -f "$file" -n "$name" -P "$PRIVACY" --no-wait-transcoding 2>&1)
   local status=$?
   echo "$saida"
 
