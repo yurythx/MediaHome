@@ -1,0 +1,87 @@
+# ytdl-material - Downloader de vídeos (YouTube e outras plataformas, via yt-dlp)
+# Para iniciar apenas este serviço: docker compose --env-file .env -f ytdl-material/ytdl-material.yml up -d
+# Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# USO LEGAL: baixe só conteúdo que você tem direito de copiar (seu próprio
+# conteúdo, licença Creative Commons, ou material que você comprou/tem acesso
+# legítimo e quer só uma cópia pessoal offline). Isso NÃO contorna DRM real
+# (Widevine/PlayReady) - só funciona em streaming simples (HLS/DASH sem
+# criptografia). Baixar/redistribuir conteúdo de terceiros sem autorização é
+# violação de direitos autorais.
+#
+# Sem tags de release estável publicadas pelo projeto (só "nightly" e builds
+# datados) - fixado num nightly datado específico em vez do "nightly" flutuante,
+# para não trocar de versão sozinho num pull. Atualize deliberadamente.
+
+services:
+  ytdl-postgres:
+    image: postgres:17.10-alpine
+    container_name: ytdl-postgres
+    restart: unless-stopped
+    # Mesma imagem base do peertube-postgres: roda com usuário interno
+    # UID/GID 70, não 1000 - não compartilhe este volume via Samba/chown -R 1000:1000.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - POSTGRES_USER=${YTDL_DB_USERNAME:-ytdl}
+      - "POSTGRES_PASSWORD=${YTDL_DB_PASSWORD:?defina YTDL_DB_PASSWORD no .env}"
+      - POSTGRES_DB=ytdl
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${YTDL_DB_USERNAME:-ytdl} -d ytdl"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/postgres:/var/lib/postgresql/data
+    networks:
+      - mediahome
+
+  ytdl-material:
+    image: voc0der/ytdl-material:nightly-2026-07-17
+    container_name: ytdl-material
+    restart: unless-stopped
+    depends_on:
+      ytdl-postgres:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+      # UID/GID do usuário interno do app (não é PUID/PGID como os outros
+      # serviços, mas o mesmo conceito - mantém consistente com 1000)
+      - ytdl_uid=${PUID:-1000}
+      - ytdl_gid=${PGID:-1000}
+      - write_ytdl_config=true
+      - ytdl_use_local_db=false
+      - ytdl_remote_db_type=postgres
+      - "ytdl_postgresdb_connection_string=postgresql://${YTDL_DB_USERNAME:-ytdl}:${YTDL_DB_PASSWORD:?defina YTDL_DB_PASSWORD no .env}@ytdl-postgres:5432/ytdl"
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/appdata:/app/appdata
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/subscriptions:/app/subscriptions
+      - ${CONFIG_PATH:-/mnt/config}/ytdl-material/users:/app/users
+      # Downloads no disco de mídia (arquivos grandes), não no disco de config
+      - ${MEDIA_PATH_1:-/mnt/dados}/ytdl/audio:/app/audio
+      - ${MEDIA_PATH_1:-/mnt/dados}/ytdl/video:/app/video
+    ports:
+      - "${YTDL_PORT:-8999}:17442"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:17442/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge

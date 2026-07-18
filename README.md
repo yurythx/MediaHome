@@ -12,6 +12,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 - **🌐 Portainer**: Interface de gerenciamento Docker
 - **📥 qBittorrent**: Cliente de torrent integrado para downloads diretos nos HDs
 - **📹 PeerTube**: Plataforma de vídeos estilo YouTube, para hospedar seus próprios clipes
+- **⬇️ ytdl-material**: Downloader de vídeos (YouTube e outras plataformas via yt-dlp) - use só para conteúdo que você tem direito de copiar
 
 ### Arquitetura
 - **Rede**: Todos os serviços compartilham a rede Docker `mediahome` (bridge), declarada em cada `.yml` para permitir subir cada serviço isoladamente
@@ -26,7 +27,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 ### Pré-requisitos
 - ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
 - ✅ Docker Compose v2+
-- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000, 8999
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
@@ -51,12 +52,14 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
 # Linux/Ubuntu
 sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
 sudo mkdir -p /mnt/config/peertube/{config,postgres,redis}
+sudo mkdir -p /mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}
 sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
-sudo mkdir -p /mnt/dados/peertube
+sudo mkdir -p /mnt/dados/peertube /mnt/dados/ytdl/{audio,video}
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
-# O Postgres do PeerTube roda com um usuário interno próprio (UID/GID 70,
-# não 1000) - sem isso, ele não consegue abrir os próprios arquivos de banco
-sudo chown -R 70:70 /mnt/config/peertube/postgres
+# O Postgres do PeerTube (e do ytdl-material, mesma imagem base) roda com um
+# usuário interno próprio (UID/GID 70, não 1000) - sem isso, não consegue
+# abrir os próprios arquivos de banco
+sudo chown -R 70:70 /mnt/config/peertube/postgres /mnt/config/ytdl-material/postgres
 # O app do PeerTube roda com UID/GID 999 (também usuário interno próprio) -
 # os vídeos ficam em /mnt/dados/peertube (disco de mídia, não o de config)
 sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
@@ -98,6 +101,7 @@ docker compose logs jellyfin --tail 50
 | **Samba** | `\\localhost\Dados` | 445 | Compartilhamento de arquivos |
 | **qBittorrent** | http://localhost:8080 | 8080 | Interface Web do Cliente Torrent |
 | **PeerTube** | http://localhost:9000 | 9000 | Plataforma de vídeos (seus clipes) |
+| **ytdl-material** | http://localhost:8999 | 8999 | Downloader de vídeos (YouTube etc.) |
 
 ### Primeiro Acesso
 
@@ -194,6 +198,14 @@ cd /home/suporte/MediaHome
 
 > ⚠️ **Vídeos grandes falham com "user quota is exceeded or video file is too big"**: essa é a mensagem genérica que o `peertube-cli` mostra pra **qualquer** erro `413 Payload Too Large` — não é necessariamente sobre cota. Se você expõe o PeerTube via **Cloudflare Tunnel**, o Cloudflare tem um limite fixo de ~100MB por requisição, e o upload "resumable" manda o vídeo em pedaços (chunks) cujo tamanho o PeerTube calcula automaticamente - podendo passar de 100MB pra arquivos grandes. `PEERTUBE_UPLOAD_CHUNK_SIZE` no `.env` fixa esse tamanho bem abaixo do limite (padrão `50MB`). Depois de mudar, recrie o container: `docker compose up -d --force-recreate peertube`.
 
+#### ⬇️ ytdl-material
+1. Acesse `http://SEU_IP:8999` (localmente) ou pelo domínio configurado no aaPanel/Cloudflare Tunnel.
+2. Crie a conta de administrador no primeiro acesso.
+3. Cole a URL do vídeo/playlist e escolha baixar como vídeo ou só áudio. Os arquivos vão para `/mnt/dados/ytdl/video` e `/mnt/dados/ytdl/audio`.
+4. Opcional: em **Subscriptions**, cadastre um canal/playlist para baixar novos vídeos automaticamente.
+
+> ⚠️ **IMPORTANTE - uso legal**: baixe só conteúdo que você tem direito de copiar (seu próprio conteúdo, licença Creative Commons, ou material que você já pagou/tem acesso legítimo e quer uma cópia pessoal offline). Isso **não** contorna DRM real (Widevine/PlayReady) usado por algumas plataformas de curso — só funciona em streaming simples (HLS/DASH sem criptografia). Baixar e principalmente redistribuir conteúdo de terceiros sem autorização é violação de direitos autorais.
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos
@@ -240,9 +252,9 @@ Os dados são persistidos em volumes locais Docker:
 - `mediahome_portainer_data` - Dados do Portainer
 
 ### Bind Mounts (Dados de Mídia)
-- `/mnt/dados` → Disco principal de mídia (inclui `/mnt/dados/peertube`, onde ficam os vídeos enviados ao PeerTube - de propósito no disco de mídia, não no de config)
+- `/mnt/dados` → Disco principal de mídia (inclui `/mnt/dados/peertube` e `/mnt/dados/ytdl`, de propósito no disco de mídia, não no de config)
 - `/mnt/dados2` → Disco secundário de mídia
-- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent` e PeerTube em `/mnt/config/peertube/{config,postgres,redis}`)
+- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent`, PeerTube em `/mnt/config/peertube/{config,postgres,redis}` e ytdl-material em `/mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}`)
 - `/mnt/backup` → Local para salvar os backups manuais
 
 ## 💾 Sistema de Backup Manual
@@ -601,6 +613,7 @@ New-NetFirewallRule -DisplayName "Portainer" -Direction Inbound -Protocol TCP -L
 New-NetFirewallRule -DisplayName "Samba" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow
 New-NetFirewallRule -DisplayName "qBittorrent" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 New-NetFirewallRule -DisplayName "PeerTube" -Direction Inbound -Protocol TCP -LocalPort 9000 -Action Allow
+New-NetFirewallRule -DisplayName "ytdl-material" -Direction Inbound -Protocol TCP -LocalPort 8999 -Action Allow
 ```
 
 ```bash
@@ -614,6 +627,7 @@ sudo ufw allow 8080/tcp  # qBittorrent Web UI
 sudo ufw allow 6881/tcp  # Torrent TCP
 sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw allow 9000/tcp  # PeerTube
+sudo ufw allow 8999/tcp  # ytdl-material
 sudo ufw reload
 ```
 
@@ -708,6 +722,8 @@ MediaHome/
 ├── peertube/
 │   ├── peertube.yml           # PeerTube + Postgres + Redis (plataforma de vídeos)
 │   └── bulk-upload.sh         # Envia em massa uma pasta inteira via peertube-cli
+├── ytdl-material/
+│   └── ytdl-material.yml      # ytdl-material + Postgres (downloader de vídeos)
 └── backup/
     └── backup.yml             # Desativado (mantido apenas para referência)
 ```
