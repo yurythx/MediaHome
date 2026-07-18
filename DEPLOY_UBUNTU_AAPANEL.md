@@ -1,11 +1,11 @@
-# Deploy Stack MediaHome - Ubuntu 24.04 + aaPanel
+# Deploy Stack MediaHome - Ubuntu 25.10 + aaPanel
 
 Este guia cobre o que é **específico de rodar em produção num servidor Ubuntu com aaPanel**: preparo do host, montagem de discos, firewall, proxy reverso/domínios e SSL.
 
 Para tudo que é comum a qualquer ambiente (o que cada serviço faz, portas, `.env`, primeiro acesso a cada app, backup manual, troubleshooting geral, comandos do dia a dia), veja o [README.md](README.md) — este documento não repete esse conteúdo.
 
 ## Pré-requisitos
-- Ubuntu 24.04 LTS
+- Ubuntu 25.10 (não é release LTS - releases pares em `.04`, como 24.04 ou 26.04, têm suporte mais longo; se preferir estabilidade de longo prazo, considere usar uma LTS)
 - aaPanel instalado (ou você vai instalar no passo 5)
 - Espaço em disco adequado para mídia (recomendado: 1TB+)
 - IP do servidor (ex: `192.168.0.121`) e, se for expor externamente, um domínio próprio
@@ -101,7 +101,7 @@ sudo ufw allow 8080/tcp    # qBittorrent Web UI
 sudo ufw allow 6881/tcp    # Torrent TCP
 sudo ufw allow 6881/udp    # Torrent UDP
 sudo ufw allow 9000/tcp    # PeerTube
-sudo ufw allow 8999/tcp    # ytdl-material
+sudo ufw allow 9898/tcp    # ytdl-material
 sudo ufw allow 7272/tcp    # Vaultwarden
 sudo ufw --force enable
 ```
@@ -146,7 +146,7 @@ No painel aaPanel, instale o Nginx via App Store e crie um site por serviço, ap
 - `portainer.seudominio.com` → `http://127.0.0.1:9020`
 - `torrent.seudominio.com` → `http://127.0.0.1:8080`
 - `PEERTUBE_HOSTNAME` (ex: `clips.seudominio.com`, o valor definido no `.env`) → `http://127.0.0.1:9000`
-- `ytdl.seudominio.com` → `http://127.0.0.1:8999`
+- `ytdl.seudominio.com` → `http://127.0.0.1:9898`
 - `vault.seudominio.com` → `http://127.0.0.1:7272`
 
 Exemplo de configuração Nginx para o Jellyfin (streaming precisa de `proxy_buffering off` e WebSocket habilitado):
@@ -193,7 +193,7 @@ curl -I http://localhost:4533  # Navidrome
 curl -I http://localhost:9020  # Portainer
 curl -I http://localhost:8080  # qBittorrent
 curl -I http://localhost:9000  # PeerTube
-curl -I http://localhost:8999  # ytdl-material
+curl -I http://localhost:9898  # ytdl-material
 curl -I http://localhost:7272  # Vaultwarden
 smbclient -L localhost -U seu_usuario
 

@@ -28,7 +28,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 ### Pré-requisitos
 - ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
 - ✅ Docker Compose v2+
-- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000, 8999, 7272
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000, 9898, 7272
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
@@ -136,7 +136,7 @@ docker compose logs jellyfin --tail 50
 | **Samba** | `\\localhost\Dados` | 445 | Compartilhamento de arquivos |
 | **qBittorrent** | http://localhost:8080 | 8080 | Interface Web do Cliente Torrent |
 | **PeerTube** | http://localhost:9000 | 9000 | Plataforma de vídeos (seus clipes) |
-| **ytdl-material** | http://localhost:8999 | 8999 | Downloader de vídeos (YouTube etc.) |
+| **ytdl-material** | http://localhost:9898 | 9898 | Downloader de vídeos (YouTube etc.) |
 | **Vaultwarden** | http://localhost:7272 | 7272 | Gerenciador de senhas self-hosted |
 
 ### Primeiro Acesso
@@ -235,7 +235,7 @@ cd /home/suporte/MediaHome
 > ⚠️ **Vídeos grandes falham com "user quota is exceeded or video file is too big"**: essa é a mensagem genérica que o `peertube-cli` mostra pra **qualquer** erro `413 Payload Too Large` — não é necessariamente sobre cota. Se você expõe o PeerTube via **Cloudflare Tunnel**, o Cloudflare tem um limite fixo de ~100MB por requisição, e o upload "resumable" manda o vídeo em pedaços (chunks) cujo tamanho o PeerTube calcula automaticamente - podendo passar de 100MB pra arquivos grandes. `PEERTUBE_UPLOAD_CHUNK_SIZE` no `.env` fixa esse tamanho bem abaixo do limite (padrão `50MB`). Depois de mudar, recrie o container: `docker compose up -d --force-recreate peertube`.
 
 #### ⬇️ ytdl-material
-1. Acesse `http://SEU_IP:8999` (localmente) ou pelo domínio configurado no aaPanel/Cloudflare Tunnel.
+1. Acesse `http://SEU_IP:9898` (localmente) ou pelo domínio configurado no aaPanel/Cloudflare Tunnel.
 2. Crie a conta de administrador no primeiro acesso.
 3. Cole a URL do vídeo/playlist e escolha baixar como vídeo ou só áudio. Os arquivos vão para `/mnt/dados/ytdl/video` e `/mnt/dados/ytdl/audio`.
 4. Opcional: em **Subscriptions**, cadastre um canal/playlist para baixar novos vídeos automaticamente.
@@ -714,7 +714,7 @@ New-NetFirewallRule -DisplayName "Portainer" -Direction Inbound -Protocol TCP -L
 New-NetFirewallRule -DisplayName "Samba" -Direction Inbound -Protocol TCP -LocalPort 445 -Action Allow
 New-NetFirewallRule -DisplayName "qBittorrent" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 New-NetFirewallRule -DisplayName "PeerTube" -Direction Inbound -Protocol TCP -LocalPort 9000 -Action Allow
-New-NetFirewallRule -DisplayName "ytdl-material" -Direction Inbound -Protocol TCP -LocalPort 8999 -Action Allow
+New-NetFirewallRule -DisplayName "ytdl-material" -Direction Inbound -Protocol TCP -LocalPort 9898 -Action Allow
 New-NetFirewallRule -DisplayName "Vaultwarden" -Direction Inbound -Protocol TCP -LocalPort 7272 -Action Allow
 ```
 
@@ -729,7 +729,7 @@ sudo ufw allow 8080/tcp  # qBittorrent Web UI
 sudo ufw allow 6881/tcp  # Torrent TCP
 sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw allow 9000/tcp  # PeerTube
-sudo ufw allow 8999/tcp  # ytdl-material
+sudo ufw allow 9898/tcp  # ytdl-material
 sudo ufw allow 7272/tcp  # Vaultwarden
 sudo ufw reload
 ```

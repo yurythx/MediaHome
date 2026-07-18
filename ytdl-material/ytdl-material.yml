@@ -71,7 +71,7 @@ services:
       - ${MEDIA_PATH_1:-/mnt/dados}/ytdl/audio:/app/audio
       - ${MEDIA_PATH_1:-/mnt/dados}/ytdl/video:/app/video
     ports:
-      - "${YTDL_PORT:-8999}:17442"
+      - "${YTDL_PORT:-9898}:17442"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:17442/"]
       interval: 30s
