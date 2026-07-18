@@ -23,6 +23,9 @@ include:
   # Download de vídeos (YouTube e outras plataformas)
   - ytdl-material/ytdl-material.yml
 
+  # Segurança e credenciais
+  - vaultwarden/vaultwarden.yml
+
 # Rede compartilhada entre todos os serviços
 # (declarada de forma idêntica em cada .yml de serviço para permitir subir
 #  cada um isoladamente com "docker compose --env-file .env -f servico/servico.yml up -d")

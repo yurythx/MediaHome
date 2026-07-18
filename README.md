@@ -13,6 +13,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 - **📥 qBittorrent**: Cliente de torrent integrado para downloads diretos nos HDs
 - **📹 PeerTube**: Plataforma de vídeos estilo YouTube, para hospedar seus próprios clipes
 - **⬇️ ytdl-material**: Downloader de vídeos (YouTube e outras plataformas via yt-dlp) - use só para conteúdo que você tem direito de copiar
+- **🔐 Vaultwarden**: Gerenciador de senhas self-hosted, compatível com clientes Bitwarden (app, extensão de navegador, web)
 
 ### Arquitetura
 - **Rede**: Todos os serviços compartilham a rede Docker `mediahome` (bridge), declarada em cada `.yml` para permitir subir cada serviço isoladamente
@@ -27,7 +28,7 @@ Esta stack oferece uma solução completa de servidor de mídia doméstico, cent
 ### Pré-requisitos
 - ✅ Docker Desktop (Windows) ou Docker Engine (Linux)
 - ✅ Docker Compose v2+
-- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000, 8999
+- ✅ Portas disponíveis: 8096, 8082, 4533, 9020, 445, 8080, 6881, 9000, 8999, 7272
 - ✅ Estrutura de diretórios configurada (veja seção abaixo)
 
 ### Estrutura de Diretórios Obrigatória
@@ -46,6 +47,7 @@ New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados\peertube"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\dados2"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\externo"
 New-Item -ItemType Directory -Force -Path "C:\MediaHome\backup"
+New-Item -ItemType Directory -Force -Path "C:\MediaHome\config\vaultwarden"
 ```
 
 ```bash
@@ -55,6 +57,7 @@ sudo mkdir -p /mnt/config/peertube/{config,postgres,redis}
 sudo mkdir -p /mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}
 sudo mkdir -p /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 sudo mkdir -p /mnt/dados/peertube /mnt/dados/ytdl/{audio,video}
+sudo mkdir -p /mnt/config/vaultwarden
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/backup /mnt/externo
 # O Postgres do PeerTube (e do ytdl-material, mesma imagem base) roda com um
 # usuário interno próprio (UID/GID 70, não 1000) - sem isso, não consegue
@@ -63,6 +66,8 @@ sudo chown -R 70:70 /mnt/config/peertube/postgres /mnt/config/ytdl-material/post
 # O app do PeerTube roda com UID/GID 999 (também usuário interno próprio) -
 # os vídeos ficam em /mnt/dados/peertube (disco de mídia, não o de config)
 sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
+# Vaultwarden já roda com UID/GID 1000 (definido no próprio vaultwarden.yml
+# via "user:"), então o chown -R 1000:1000 acima já cobre a pasta dele
 ```
 
 ### Instalação e Execução
@@ -102,6 +107,7 @@ docker compose logs jellyfin --tail 50
 | **qBittorrent** | http://localhost:8080 | 8080 | Interface Web do Cliente Torrent |
 | **PeerTube** | http://localhost:9000 | 9000 | Plataforma de vídeos (seus clipes) |
 | **ytdl-material** | http://localhost:8999 | 8999 | Downloader de vídeos (YouTube etc.) |
+| **Vaultwarden** | http://localhost:7272 | 7272 | Gerenciador de senhas self-hosted |
 
 ### Primeiro Acesso
 
@@ -206,6 +212,19 @@ cd /home/suporte/MediaHome
 
 > ⚠️ **IMPORTANTE - uso legal**: baixe só conteúdo que você tem direito de copiar (seu próprio conteúdo, licença Creative Commons, ou material que você já pagou/tem acesso legítimo e quer uma cópia pessoal offline). Isso **não** contorna DRM real (Widevine/PlayReady) usado por algumas plataformas de curso — só funciona em streaming simples (HLS/DASH sem criptografia). Baixar e principalmente redistribuir conteúdo de terceiros sem autorização é violação de direitos autorais.
 
+#### 🔐 Vaultwarden
+1. Acesse `http://SEU_IP:7272` (localmente) ou pelo domínio configurado no aaPanel/Cloudflare Tunnel — **de preferência via Cloudflare Tunnel ou HTTPS**, nunca crie a conta mestra em HTTP puro exposto à internet.
+2. Na primeira vez, com `VAULTWARDEN_SIGNUPS_ALLOWED=true` (padrão do `.env.example`), clique em **Create Account** e defina seu e-mail e senha mestra. Guarde essa senha em local seguro — como a criptografia é feita no lado do cliente, **não existe "esqueci minha senha"**: perdê-la significa perder acesso a todos os dados salvos.
+3. **Trave o cadastro assim que criar sua conta** (evita que qualquer pessoa que descubra a URL crie conta própria no seu servidor de senhas):
+   ```bash
+   # No .env, mude:
+   VAULTWARDEN_SIGNUPS_ALLOWED=false
+   # Depois recrie o container:
+   docker compose up -d --force-recreate vaultwarden
+   ```
+4. Instale o app oficial do **Bitwarden** (Android/iOS/desktop) ou a extensão de navegador, e em **Configurações → Servidor self-hosted** aponte para a URL do seu Vaultwarden em vez de `bitwarden.com`.
+5. Opcional: para habilitar o painel `/admin` (gerenciar usuários, ver diagnósticos), gere um token com `openssl rand -base64 48`, defina em `VAULTWARDEN_ADMIN_TOKEN` no `.env` e recrie o container.
+
 ## 🔧 Gerenciamento da Stack
 
 ### Comandos Básicos
@@ -239,6 +258,8 @@ docker compose --env-file .env -f fileserver/samba.yml up -d
 docker compose --env-file .env -f portainer/portainer.yml up -d
 docker compose --env-file .env -f qbittorrent/qbittorrent.yml up -d
 docker compose --env-file .env -f peertube/peertube.yml up -d
+docker compose --env-file .env -f ytdl-material/ytdl-material.yml up -d
+docker compose --env-file .env -f vaultwarden/vaultwarden.yml up -d
 
 # Parar serviço específico
 docker compose --env-file .env -f jellyfin/jellyfin.yml down
@@ -254,7 +275,7 @@ Os dados são persistidos em volumes locais Docker:
 ### Bind Mounts (Dados de Mídia)
 - `/mnt/dados` → Disco principal de mídia (inclui `/mnt/dados/peertube` e `/mnt/dados/ytdl`, de propósito no disco de mídia, não no de config)
 - `/mnt/dados2` → Disco secundário de mídia
-- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent`, PeerTube em `/mnt/config/peertube/{config,postgres,redis}` e ytdl-material em `/mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}`)
+- `/mnt/config` → Configurações dos serviços (incluindo qBittorrent em `/mnt/config/qbittorrent`, PeerTube em `/mnt/config/peertube/{config,postgres,redis}`, ytdl-material em `/mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}` e Vaultwarden em `/mnt/config/vaultwarden`)
 - `/mnt/backup` → Local para salvar os backups manuais
 
 ## 💾 Sistema de Backup Manual
@@ -270,6 +291,8 @@ Como os backups automáticos constantes ocupavam muito espaço em disco, o cont�
 > docker compose start peertube-postgres peertube
 > ```
 > Os demais serviços (Jellyfin, Komga, Navidrome, Samba, qBittorrent, Portainer) não usam banco de dados e podem ser copiados com tudo rodando sem esse risco.
+
+> 🔐 **Vaultwarden guarda todas as suas senhas em `/mnt/config/vaultwarden`** — já incluído no backup de `/mnt/config` abaixo, mas vale reforçar: é a **única cópia** dos seus dados (mesmo criptografados, perder esse arquivo é perder tudo). Não usa banco externo, então não precisa parar o container antes do backup.
 
 ### Criar Backup Manual (Linux/Ubuntu)
 ```bash
@@ -426,6 +449,26 @@ sudo mount -t cifs //SEU_IP/Dados /mnt/dados_remoto \
 # Go → Connect to Server: smb://SEU_IP/Dados
 ```
 
+### Como funciona o Vaultwarden (Gerenciador de Senhas)
+
+[Vaultwarden](https://github.com/dani-garcia/vaultwarden) é uma reimplementação, em Rust, da API do servidor do [Bitwarden](https://bitwarden.com/) — não é um fork do Bitwarden oficial, é um servidor compatível escrito do zero por outra equipe (projeto de comunidade, sem suporte oficial da empresa Bitwarden). Isso significa que você usa os **apps e extensões oficiais do Bitwarden** (Android, iOS, Windows/Mac/Linux, extensão de navegador) normalmente, só que configurados para falar com o seu próprio servidor em vez de `bitwarden.com`.
+
+**Criptografia "zero-knowledge" (o servidor nunca vê suas senhas em texto puro):**
+- Sua senha mestra **nunca é enviada ao servidor**. No dispositivo (app/extensão), ela passa por uma função de derivação de chave (PBKDF2 ou Argon2, configurável) que gera uma chave simétrica.
+- Essa chave criptografa e descriptografa seu cofre **localmente**, antes de qualquer dado sair do dispositivo. O que chega ao Vaultwarden e fica salvo em `/mnt/config/vaultwarden/db.sqlite3` são só os blobs já criptografados.
+- Na prática: mesmo que alguém copie o arquivo do banco de dados diretamente do servidor, sem a sua senha mestra os dados são, para fins práticos, inúteis (segurança depende da força da senha mestra escolhida).
+- Consequência direta: **não existe "esqueci minha senha"**. Se você perder a senha mestra, os dados salvos ficam matematicamente irrecuperáveis — nem o admin do servidor (você mesmo) consegue resetar sem perder o cofre.
+
+**Por que Vaultwarden em vez do Bitwarden oficial hospedado:**
+No plano gratuito do Bitwarden oficial hospedado por eles (`bitwarden.com`), recursos como armazenamento de anexos de arquivo, geração/verificação de código TOTP (2FA) embutida no próprio cofre, e o recurso "Send" (compartilhamento temporário de texto/arquivo) ficam atrás do plano pago Premium. No Vaultwarden self-hosted, esses mesmos recursos ficam disponíveis sem custo adicional, porque é você quem hospeda os dados — a troca é a responsabilidade de manter o servidor no ar e fazer backup.
+
+**Sincronização em tempo real:** o app/extensão mantém uma conexão (websocket, já habilitado em `ENABLE_WEBSOCKET=true` no `vaultwarden.yml`) com o servidor. Ao salvar/editar uma senha num dispositivo, os outros dispositivos logados recebem a atualização quase instantaneamente, sem precisar de sincronização manual.
+
+**Recomendações de uso:**
+- Habilite 2FA (TOTP) na sua própria conta do Vaultwarden (**Configurações → Segurança → Autenticação de dois fatores**) para uma camada extra além da senha mestra.
+- Guarde a senha mestra em um lugar físico seguro (não em outro serviço online) — é o único ponto de recuperação em caso de esquecimento.
+- Faça backup regular de `/mnt/config/vaultwarden` (veja a seção de backup manual acima) — como não usa banco de dados externo (é SQLite embutido), o arquivo em si já é o cofre completo.
+
 ### Configurar Portainer
 1. Acesse http://localhost:9020
 2. Crie conta de administrador no primeiro acesso
@@ -555,6 +598,16 @@ sudo truncate -s 0 "$(docker inspect --format='{{.LogPath}}' peertube)"
 ```
 A causa raiz identificada: `PEERTUBE_LOG_LEVEL=debug` faz o PeerTube despejar o conteúdo bruto (buffer, byte a byte) de comandos internos do Redis/Bull (fila de transcodificação) no log — um volume gigantesco em pouco tempo. `PEERTUBE_LOG_LEVEL` já vem fixado em `info` no `.env.example`; **não mude para `debug` em produção** a não ser que seja por um período curto e monitorado, para investigar algo específico.
 
+#### Vaultwarden abre mas não deixa criar conta / diz que cadastro está desabilitado
+`VAULTWARDEN_SIGNUPS_ALLOWED` precisa estar `true` no `.env` — mas só até você criar a sua conta:
+```bash
+docker compose logs vaultwarden --tail 50   # confirmar que subiu sem erro
+# depois de criar a conta, no .env:
+VAULTWARDEN_SIGNUPS_ALLOWED=false
+docker compose up -d --force-recreate vaultwarden
+```
+Se esqueceu de travar e alguém criou uma conta indevida, entre no `/admin` (requer `VAULTWARDEN_ADMIN_TOKEN` definido) para removê-la, ou pare o container, apague o usuário direto no SQLite em `/mnt/config/vaultwarden/db.sqlite3` (com o container parado) e recrie.
+
 #### Problema de permissão ao criar backup manual (Linux)
 Se houver problemas ao criar ou acessar a pasta `/mnt/backup`:
 ```bash
@@ -602,6 +655,7 @@ docker compose up -d --force-recreate jellyfin
 - ✅ Portainer tem acesso ao socket do Docker (equivale a root no host): não exponha a porta 9020 diretamente na internet sem VPN, IP allowlist ou autenticação adicional (ex: Authelia)
 - ⚠️ O qBittorrent tem acesso de **escrita** à raiz de `/mnt/dados` e `/mnt/dados2` (diferente dos demais serviços, que são somente leitura) — avalie restringir a uma subpasta dedicada de downloads
 - ⚠️ O PeerTube federa via ActivityPub e, por padrão, vídeos marcados como "Público" ficam visíveis/indexáveis por outras instâncias PeerTube na internet, mesmo sem divulgar o link. Se os clipes são só para uso pessoal/família, marque-os como "Não listado" ou "Privado" ao publicar, e desative signup público em **Administração → Configurações → Cadastro**
+- 🔐 **Vaultwarden**: assim que criar sua conta, mude `VAULTWARDEN_SIGNUPS_ALLOWED` para `false` no `.env` e recrie o container — com `true` permanente, qualquer pessoa que descubra a URL pode criar conta própria no seu gerenciador de senhas. Prefira acessá-lo só via HTTPS/Cloudflare Tunnel, nunca HTTP puro exposto à internet, já que a senha mestra passa pela rede na hora do login (a criptografia dos dados é client-side, mas a senha em si ainda precisa ser transmitida para autenticar)
 
 ### Configuração de Firewall
 ```powershell
@@ -614,6 +668,7 @@ New-NetFirewallRule -DisplayName "Samba" -Direction Inbound -Protocol TCP -Local
 New-NetFirewallRule -DisplayName "qBittorrent" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 New-NetFirewallRule -DisplayName "PeerTube" -Direction Inbound -Protocol TCP -LocalPort 9000 -Action Allow
 New-NetFirewallRule -DisplayName "ytdl-material" -Direction Inbound -Protocol TCP -LocalPort 8999 -Action Allow
+New-NetFirewallRule -DisplayName "Vaultwarden" -Direction Inbound -Protocol TCP -LocalPort 7272 -Action Allow
 ```
 
 ```bash
@@ -628,6 +683,7 @@ sudo ufw allow 6881/tcp  # Torrent TCP
 sudo ufw allow 6881/udp  # Torrent UDP
 sudo ufw allow 9000/tcp  # PeerTube
 sudo ufw allow 8999/tcp  # ytdl-material
+sudo ufw allow 7272/tcp  # Vaultwarden
 sudo ufw reload
 ```
 
@@ -665,7 +721,7 @@ docker compose logs --timestamps --tail=100
 ```
 
 ### Health Checks
-Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome, qBittorrent e PeerTube têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis. Postgres e Redis do PeerTube também não têm healthcheck próprio aqui — se falharem, o container `peertube` vai indicar erro de conexão nos logs.
+Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome, qBittorrent, PeerTube, ytdl-material e Vaultwarden têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço; Vaultwarden usa o endpoint oficial `/alive`). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis. Postgres e Redis do PeerTube (e o Postgres do ytdl-material) também não têm healthcheck próprio aqui — se falharem, o container principal vai indicar erro de conexão nos logs.
 
 ```powershell
 # Verificar saúde de todos os containers
@@ -681,6 +737,7 @@ Test-NetConnection -ComputerName localhost -Port 4533  # Navidrome
 Test-NetConnection -ComputerName localhost -Port 9020  # Portainer
 Test-NetConnection -ComputerName localhost -Port 8080  # qBittorrent
 Test-NetConnection -ComputerName localhost -Port 9000  # PeerTube
+Test-NetConnection -ComputerName localhost -Port 7272  # Vaultwarden
 ```
 
 ## 🚀 Implantação em Produção (Ubuntu + aaPanel)
@@ -696,6 +753,7 @@ Para colocar a stack em produção num servidor Ubuntu com aaPanel — preparo d
 - [Samba Documentation](https://www.samba.org/samba/docs/)
 - [Portainer Documentation](https://docs.portainer.io/)
 - [PeerTube Documentation](https://docs.joinpeertube.org/)
+- [Vaultwarden Wiki](https://github.com/dani-garcia/vaultwarden/wiki)
 
 ### Estrutura do Projeto
 ```
@@ -724,6 +782,8 @@ MediaHome/
 │   └── bulk-upload.sh         # Envia em massa uma pasta inteira via peertube-cli
 ├── ytdl-material/
 │   └── ytdl-material.yml      # ytdl-material + Postgres (downloader de vídeos)
+├── vaultwarden/
+│   └── vaultwarden.yml        # Vaultwarden (gerenciador de senhas)
 └── backup/
     └── backup.yml             # Desativado (mantido apenas para referência)
 ```

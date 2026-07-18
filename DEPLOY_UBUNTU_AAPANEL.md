@@ -34,6 +34,7 @@ sudo mkdir -p /mnt/config/{jellyfin,komga,navidrome,portainer,qbittorrent}
 sudo mkdir -p /mnt/config/peertube/{config,postgres,redis}
 sudo mkdir -p /mnt/config/ytdl-material/{appdata,subscriptions,users,postgres}
 sudo mkdir -p /mnt/dados/peertube /mnt/dados/ytdl/{audio,video}
+sudo mkdir -p /mnt/config/vaultwarden
 sudo chown -R 1000:1000 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 sudo chmod -R 755 /mnt/config /mnt/dados /mnt/dados2 /mnt/externo /mnt/backup
 # O Postgres do PeerTube (e do ytdl-material, mesma imagem base) roda com
@@ -43,6 +44,8 @@ sudo chown -R 70:70 /mnt/config/peertube/postgres /mnt/config/ytdl-material/post
 # O app do PeerTube roda com UID/GID 999 - vídeos ficam no disco de mídia,
 # não no de config
 sudo chown -R 999:999 /mnt/dados/peertube /mnt/config/peertube/config
+# Vaultwarden já roda com UID/GID 1000 (definido no próprio vaultwarden.yml
+# via "user:"), então o chown -R 1000:1000 acima já cobre a pasta dele
 ```
 
 ### Discos locais (ext4) — montagem automática via fstab
@@ -97,6 +100,7 @@ sudo ufw allow 6881/tcp    # Torrent TCP
 sudo ufw allow 6881/udp    # Torrent UDP
 sudo ufw allow 9000/tcp    # PeerTube
 sudo ufw allow 8999/tcp    # ytdl-material
+sudo ufw allow 7272/tcp    # Vaultwarden
 sudo ufw --force enable
 ```
 
@@ -137,6 +141,7 @@ No painel aaPanel, instale o Nginx via App Store e crie um site por serviço, ap
 - `torrent.seudominio.com` → `http://127.0.0.1:8080`
 - `PEERTUBE_HOSTNAME` (ex: `clips.seudominio.com`, o valor definido no `.env`) → `http://127.0.0.1:9000`
 - `ytdl.seudominio.com` → `http://127.0.0.1:8999`
+- `vault.seudominio.com` → `http://127.0.0.1:7272`
 
 Exemplo de configuração Nginx para o Jellyfin (streaming precisa de `proxy_buffering off` e WebSocket habilitado):
 ```nginx
@@ -183,6 +188,7 @@ curl -I http://localhost:9020  # Portainer
 curl -I http://localhost:8080  # qBittorrent
 curl -I http://localhost:9000  # PeerTube
 curl -I http://localhost:8999  # ytdl-material
+curl -I http://localhost:7272  # Vaultwarden
 smbclient -L localhost -U seu_usuario
 
 # Via domínio (após configurar aaPanel/SSL)
@@ -203,6 +209,7 @@ curl -I https://jellyfin.seudominio.com
 | Discos não montam após reiniciar | `sudo mount -a` e conferir UUIDs em `/etc/fstab` com `sudo blkid` |
 | PeerTube não abre / erro de domínio | `PEERTUBE_HOSTNAME` no `.env` precisa ser idêntico ao domínio configurado no site do aaPanel; se você errou o valor no primeiro `up`, é preciso apagar `/mnt/config/peertube/postgres` e recomeçar |
 | ytdl-material não sobe | `docker compose logs ytdl-postgres` e `docker compose logs ytdl-material` - geralmente `YTDL_DB_PASSWORD` não definida no `.env` ou o Postgres ainda inicializando |
+| Vaultwarden abre mas não deixa criar conta | `VAULTWARDEN_SIGNUPS_ALLOWED` precisa estar `true` no `.env` (só até você criar sua conta - depois volte para `false` e recrie o container) |
 
 Para os demais problemas (containers, permissões, backup, cada serviço individualmente), veja a seção "🛠️ Solução de Problemas" do [README.md](README.md#solução-de-problemas).
 

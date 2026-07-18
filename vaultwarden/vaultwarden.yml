@@ -1,0 +1,58 @@
+# Vaultwarden - Gerenciador de senhas self-hosted (compatível com clientes Bitwarden)
+# Para iniciar apenas este serviço: docker compose --env-file .env -f vaultwarden/vaultwarden.yml up -d
+# Para usar com compose principal: incluído automaticamente
+# Variáveis lidas do .env na raiz do projeto (veja .env.example)
+#
+# ATENÇÃO: este serviço guarda TODAS as suas senhas. Cuidados extras:
+# 1. VAULTWARDEN_SIGNUPS_ALLOWED=true só no primeiríssimo boot, pra você criar
+#    sua conta. Depois de criar, mude pra "false" no .env e recrie o container
+#    (docker compose up -d --force-recreate vaultwarden) - senão qualquer
+#    pessoa que ache a URL pode criar conta própria no seu servidor.
+# 2. Sem "Esqueci minha senha": a senha mestra nunca é enviada ao servidor
+#    (criptografia acontece no cliente). Se você esquecer, os dados salvos
+#    ficam matematicamente impossíveis de recuperar. Guarde-a em local seguro.
+# 3. Faça backup de /mnt/config/vaultwarden regularmente - é a única cópia
+#    dos seus dados (mesmo criptografados, perder o arquivo é perder tudo).
+#
+# Sem PUID/PGID nativo: a imagem roda como root por padrão se "user:" não for
+# definido explicitamente - por isso fixamos abaixo, igual ao resto da stack.
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.36.0
+    container_name: vaultwarden
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+      # Sincronização em tempo real entre dispositivos (app, extensão, web).
+      # Não precisa de porta separada nas versões atuais - tudo na porta 80.
+      - ENABLE_WEBSOCKET=true
+      - SIGNUPS_ALLOWED=${VAULTWARDEN_SIGNUPS_ALLOWED:-true}
+      - INVITATIONS_ALLOWED=false
+      # Painel admin (/admin) fica desabilitado se isso ficar vazio. Gere com:
+      # openssl rand -base64 48
+      - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN:-}
+    volumes:
+      - ${CONFIG_PATH:-/mnt/config}/vaultwarden:/data
+    ports:
+      - "${VAULTWARDEN_PORT:-7272}:80"
+    healthcheck:
+      # /alive é o endpoint oficial de healthcheck do próprio projeto
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - mediahome
+
+networks:
+  mediahome:
+    name: ${DOCKER_NETWORK:-mediahome}
+    driver: bridge
