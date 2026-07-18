@@ -724,7 +724,7 @@ docker compose logs --timestamps --tail=100
 ```
 
 ### Health Checks
-Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome, qBittorrent, PeerTube, ytdl-material e Vaultwarden têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço; Vaultwarden usa o endpoint oficial `/alive`). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis. Postgres e Redis do PeerTube (e o Postgres do ytdl-material) também não têm healthcheck próprio aqui — se falharem, o container principal vai indicar erro de conexão nos logs.
+Jellyfin e Samba já trazem `HEALTHCHECK` embutido nas próprias imagens oficiais. Komga, Navidrome, qBittorrent, PeerTube, ytdl-material e Vaultwarden têm `healthcheck` configurado nos respectivos `.yml` (HTTP na porta interna do serviço; Vaultwarden usa o endpoint oficial `/alive`). Portainer não tem healthcheck — a imagem é minimalista e não garante `curl`/`wget` disponíveis. Os bancos de dados (Postgres e Redis do PeerTube, Postgres do ytdl-material) também têm `healthcheck` próprio (`pg_isready`/`redis-cli ping`), e os apps que dependem deles (`peertube`, `ytdl-material`) só sobem depois que o banco reporta saudável (`depends_on: condition: service_healthy`) — evita erro de conexão na inicialização por o app subir antes do banco estar pronto.
 
 ```powershell
 # Verificar saúde de todos os containers
